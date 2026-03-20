@@ -1,3 +1,7 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/auth/:path*", "destination": "https://splitwitme-backend.vercel.app/auth/:path*" },
+    { "source": "/groups/:path*", "destination": "https://splitwitme-backend.vercel.app/groups/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

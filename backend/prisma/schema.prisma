@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  googleId     String   @unique
+  email        String   @unique
+  name         String
+  avatarUrl    String?
+  venmoHandle  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  groupMemberships  GroupMember[]
+  paidTransactions  Transaction[]     @relation("PaidBy")
+  transactionSplits TransactionSplit[]
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members      GroupMember[]
+  transactions Transaction[]
+}
+
+model GroupMember {
+  id       String    @id @default(cuid())
+  groupId  String
+  userId   String
+  role     GroupRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+enum GroupRole {
+  OWNER
+  MEMBER
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  groupId     String
+  paidById    String
+  description String
+  amount      Decimal  @db.Decimal(10, 2)
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  group  Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  paidBy User   @relation("PaidBy", fields: [paidById], references: [id])
+  splits TransactionSplit[]
+}
+
+model TransactionSplit {
+  id            String  @id @default(cuid())
+  transactionId String
+  userId        String
+  amount        Decimal @db.Decimal(10, 2)
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id])
+
+  @@unique([transactionId, userId])
+}

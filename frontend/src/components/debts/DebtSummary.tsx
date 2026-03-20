@@ -73,15 +73,17 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
             <div className="flex items-center gap-2 shrink-0">
               <span className="font-semibold">${debt.amount.toFixed(2)}</span>
               {debt.fromId === currentUserId && (
-                <Button size="sm" variant="outline" onClick={() => openConfirm(debt)}>
-                  Paid in cash
-                </Button>
+                <>
+                  <Button size="sm" variant="outline" onClick={() => openConfirm(debt)}>
+                    Paid in cash
+                  </Button>
+                  <VenmoButton
+                    venmoLink={debt.venmoLink}
+                    amount={debt.amount}
+                    recipientName={debt.toName}
+                  />
+                </>
               )}
-              <VenmoButton
-                venmoLink={debt.venmoLink}
-                amount={debt.amount}
-                recipientName={debt.toName}
-              />
             </div>
           </div>
         ))}

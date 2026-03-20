@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Plus, UserPlus, ArrowLeft } from 'lucide-react'
-import { useGroup } from '@/hooks/useGroups'
+import { Plus, UserPlus, ArrowLeft, Link, RefreshCw } from 'lucide-react'
+import { useGroup, useGroupJoinLink, useRegenerateJoinLink } from '@/hooks/useGroups'
 import { useTransactions, useDeleteTransaction, useUpdateTransaction, useCreateTransaction } from '@/hooks/useTransactions'
 import { useDebts } from '@/hooks/useDebts'
 import { useAuth } from '@/hooks/useAuth'
 import { Navbar } from '@/components/layout/Navbar'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { TransactionItem } from '@/components/transactions/TransactionItem'
 import { TransactionForm } from '@/components/transactions/TransactionForm'
 import { DebtSummary } from '@/components/debts/DebtSummary'
@@ -26,6 +27,8 @@ export function GroupDetail() {
   const createTx = useCreateTransaction(id!)
   const updateTx = useUpdateTransaction(id!)
   const deleteTx = useDeleteTransaction(id!)
+  const joinLinkQuery = useGroupJoinLink(id!)
+  const regenerateJoinLink = useRegenerateJoinLink(id!)
   const { toast } = useToast()
 
   const [tab, setTab] = useState<Tab>('transactions')
@@ -47,6 +50,30 @@ export function GroupDetail() {
   if (!group) return null
 
   const members = group.members.map(m => ({ id: m.user.id, name: m.user.name }))
+  const isOwner = group.members.find(m => m.user.id === user?.id)?.role === 'OWNER'
+
+  const handleShareJoinLink = async () => {
+    try {
+      const result = await joinLinkQuery.refetch()
+      if (result.data?.joinUrl) {
+        await navigator.clipboard.writeText(result.data.joinUrl)
+        toast('Link copied!', 'success')
+      }
+    } catch {
+      toast('Failed to get join link', 'error')
+    }
+  }
+
+  const handleRegenerateJoinLink = async () => {
+    if (!confirm('Regenerate the join link? The old link will stop working.')) return
+    try {
+      const result = await regenerateJoinLink.mutateAsync()
+      await navigator.clipboard.writeText(result.joinUrl)
+      toast('New link copied!', 'success')
+    } catch {
+      toast('Failed to regenerate join link', 'error')
+    }
+  }
 
   const handleDeleteTx = async (txId: string) => {
     if (!confirm('Delete this transaction?')) return
@@ -93,6 +120,15 @@ export function GroupDetail() {
             <h1 className="text-xl font-bold">{group.name}</h1>
             <p className="text-sm text-muted-foreground">{group.members.length} members</p>
           </div>
+          <Button variant="outline" size="sm" onClick={handleShareJoinLink}>
+            <Link className="h-4 w-4 mr-1" />
+            Share
+          </Button>
+          {isOwner && (
+            <Button variant="outline" size="sm" onClick={handleRegenerateJoinLink} disabled={regenerateJoinLink.isPending}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => setShowAddMember(true)}>
             <UserPlus className="h-4 w-4 mr-1" />
             Add
@@ -102,6 +138,19 @@ export function GroupDetail() {
             Add Transaction
           </Button>
         </div>
+
+        {/* Pending invites */}
+        {group.invites?.length > 0 && (
+          <div className="mt-4 mb-6 border rounded-lg p-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Pending Invites</p>
+            {group.invites.map(invite => (
+              <div key={invite.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                <span className="text-sm">{invite.invitedName}</span>
+                <Badge variant="secondary">Pending</Badge>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex border-b mb-6">

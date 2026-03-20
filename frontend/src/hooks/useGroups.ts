@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/api/client'
+import type { GroupInvite } from './useInvites'
 
 export interface Group {
   id: string
@@ -23,6 +24,7 @@ export interface GroupDetail {
       venmoHandle: string | null
     }
   }>
+  invites: GroupInvite[]
 }
 
 export function useGroups() {
@@ -65,6 +67,28 @@ export function useAddMember(groupId: string) {
       return res.data
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['groups', groupId] }),
+  })
+}
+
+export function useGroupJoinLink(groupId: string) {
+  return useQuery<{ joinUrl: string }>({
+    queryKey: ['groups', groupId, 'join-link'],
+    queryFn: async () => {
+      const res = await apiClient.get(`/groups/${groupId}/join-link`)
+      return res.data
+    },
+    enabled: false,
+  })
+}
+
+export function useRegenerateJoinLink(groupId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (): Promise<{ joinUrl: string }> => {
+      const res = await apiClient.post(`/groups/${groupId}/regenerate-join-link`)
+      return res.data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['groups', groupId, 'join-link'] }),
   })
 }
 

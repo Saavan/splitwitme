@@ -4,6 +4,7 @@ import { groupsRouter } from './groups'
 import { membersRouter } from './members'
 import { transactionsRouter } from './transactions'
 import { debtsRouter } from './debts'
+import { invitesRouter, publicInvitesRouter } from './invites'
 
 export const router = Router()
 
@@ -12,3 +13,5 @@ router.use(groupsRouter)
 router.use('/groups/:id/members', membersRouter)
 router.use('/groups/:id/transactions', transactionsRouter)
 router.use('/groups/:id/debts', debtsRouter)
+router.use('/groups/:id/invites', invitesRouter)
+router.use('/invites', publicInvitesRouter)

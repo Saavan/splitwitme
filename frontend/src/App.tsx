@@ -6,6 +6,8 @@ import { Login } from '@/pages/Login'
 import { Landing } from '@/pages/Landing'
 import { NewGroup } from '@/pages/NewGroup'
 import { GroupDetail } from '@/pages/GroupDetail'
+import { InvitePage } from '@/pages/InvitePage'
+import { JoinPage } from '@/pages/JoinPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,6 +28,8 @@ export default function App() {
             <Route path="/" element={<ProtectedRoute><Landing /></ProtectedRoute>} />
             <Route path="/groups/new" element={<ProtectedRoute><NewGroup /></ProtectedRoute>} />
             <Route path="/groups/:id" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
+            <Route path="/invite/:token" element={<InvitePage />} />
+            <Route path="/join/:joinCode" element={<JoinPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

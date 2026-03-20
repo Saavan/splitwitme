@@ -17,4 +17,5 @@ export const config = {
   googleCallbackUrl: requireEnv('GOOGLE_CALLBACK_URL'),
   frontendUrl: requireEnv('FRONTEND_URL'),
   isProd: process.env.NODE_ENV === 'production',
+  resendApiKey: process.env.RESEND_API_KEY || '',
 }

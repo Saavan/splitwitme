@@ -1,7 +1,9 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import { randomBytes } from 'crypto'
 import { prisma } from '../db'
 import { requireAuth } from '../middleware/requireAuth'
+import { config } from '../config'
 
 export const groupsRouter = Router()
 
@@ -89,6 +91,10 @@ groupsRouter.get('/groups/:id', requireAuth, async (req, res, next) => {
       include: {
         members: {
           include: { user: { select: { id: true, name: true, email: true, avatarUrl: true, venmoHandle: true } } }
+        },
+        invites: {
+          where: { claimedAt: null },
+          select: { id: true, invitedName: true, email: true, token: true, createdAt: true, expiresAt: true }
         }
       }
     })
@@ -118,6 +124,49 @@ groupsRouter.patch('/groups/:id', requireAuth, async (req, res, next) => {
     })
 
     res.json(group)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// GET /groups/:id/join-link (auth required, member only)
+groupsRouter.get('/groups/:id/join-link', requireAuth, async (req, res, next) => {
+  try {
+    const membership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: req.params.id, userId: req.user!.id } },
+    })
+    if (!membership) return res.status(403).json({ error: 'Not a member of this group' })
+
+    let group = await prisma.group.findUnique({ where: { id: req.params.id } })
+    if (!group) return res.status(404).json({ error: 'Group not found' })
+
+    if (!group.joinCode) {
+      const joinCode = randomBytes(12).toString('base64url')
+      group = await prisma.group.update({ where: { id: req.params.id }, data: { joinCode } })
+    }
+
+    const joinUrl = `${config.frontendUrl}/join/${group.joinCode}`
+    res.json({ joinUrl })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// POST /groups/:id/regenerate-join-link (OWNER only)
+groupsRouter.post('/groups/:id/regenerate-join-link', requireAuth, async (req, res, next) => {
+  try {
+    const membership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: req.params.id, userId: req.user!.id } },
+    })
+    if (!membership || membership.role !== 'OWNER') {
+      return res.status(403).json({ error: 'Only the group owner can regenerate the join link' })
+    }
+
+    const joinCode = randomBytes(12).toString('base64url')
+    await prisma.group.update({ where: { id: req.params.id }, data: { joinCode } })
+
+    const joinUrl = `${config.frontendUrl}/join/${joinCode}`
+    res.json({ joinUrl })
   } catch (err) {
     next(err)
   }

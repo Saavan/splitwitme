@@ -5,14 +5,75 @@ import { prisma } from '../db'
 import { requireAuth } from '../middleware/requireAuth'
 import { config } from '../config'
 
+declare module 'express-session' {
+  interface SessionData {
+    inviteToken?: string
+    joinCode?: string
+  }
+}
+
 export const authRouter = Router()
 
-authRouter.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }))
+authRouter.get('/auth/google', (req, res, next) => {
+  const { inviteToken, joinCode } = req.query
+  if (inviteToken) req.session.inviteToken = inviteToken as string
+  if (joinCode) req.session.joinCode = joinCode as string
+  if (inviteToken || joinCode) {
+    req.session.save(() => passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next))
+  } else {
+    passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next)
+  }
+})
 
 authRouter.get(
   '/auth/google/callback',
   passport.authenticate('google', { failureRedirect: `${config.frontendUrl}/login?error=auth_failed` }),
-  (_req, res) => {
+  async (req, res) => {
+    // Handle invite token claim
+    const inviteToken = req.session.inviteToken
+    if (inviteToken) {
+      delete req.session.inviteToken
+      try {
+        const invite = await prisma.groupInvite.findUnique({ where: { token: inviteToken } })
+        if (invite && !invite.claimedAt && !(invite.expiresAt && invite.expiresAt < new Date())) {
+          const existing = await prisma.groupMember.findUnique({
+            where: { groupId_userId: { groupId: invite.groupId, userId: req.user!.id } },
+          })
+          if (!existing) {
+            await prisma.$transaction([
+              prisma.groupMember.create({ data: { groupId: invite.groupId, userId: req.user!.id, role: 'MEMBER' } }),
+              prisma.groupInvite.update({
+                where: { token: inviteToken },
+                data: { claimedAt: new Date(), claimedByUserId: req.user!.id },
+              }),
+            ])
+          }
+          return res.redirect(`${config.frontendUrl}/groups/${invite.groupId}`)
+        }
+      } catch (err) {
+        console.error('Failed to claim invite:', err)
+      }
+    }
+
+    // Handle join code
+    const joinCode = req.session.joinCode
+    if (joinCode) {
+      delete req.session.joinCode
+      try {
+        const group = await prisma.group.findUnique({ where: { joinCode } })
+        if (group) {
+          await prisma.groupMember.upsert({
+            where: { groupId_userId: { groupId: group.id, userId: req.user!.id } },
+            update: {},
+            create: { groupId: group.id, userId: req.user!.id, role: 'MEMBER' },
+          })
+          return res.redirect(`${config.frontendUrl}/groups/${group.id}`)
+        }
+      } catch (err) {
+        console.error('Failed to join via join link:', err)
+      }
+    }
+
     res.redirect(config.frontendUrl)
   }
 )

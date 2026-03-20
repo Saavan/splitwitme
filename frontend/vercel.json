@@ -2,6 +2,7 @@
   "rewrites": [
     { "source": "/auth/:path*", "destination": "https://splitwitme-backend.vercel.app/auth/:path*" },
     { "source": "/groups/:path*", "destination": "https://splitwitme-backend.vercel.app/groups/:path*" },
+    { "source": "/invites/:path*", "destination": "https://splitwitme-backend.vercel.app/invites/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

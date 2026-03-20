@@ -20,16 +20,20 @@ model User {
   groupMemberships  GroupMember[]
   paidTransactions  Transaction[]     @relation("PaidBy")
   transactionSplits TransactionSplit[]
+  invitesCreated    GroupInvite[]     @relation("InvitesCreated")
+  invitesClaimed    GroupInvite[]     @relation("InvitesClaimed")
 }
 
 model Group {
   id        String   @id @default(cuid())
   name      String
+  joinCode  String?  @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   members      GroupMember[]
   transactions Transaction[]
+  invites      GroupInvite[]
 }
 
 model GroupMember {
@@ -63,6 +67,23 @@ model Transaction {
   group  Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
   paidBy User   @relation("PaidBy", fields: [paidById], references: [id])
   splits TransactionSplit[]
+}
+
+model GroupInvite {
+  id              String    @id @default(cuid())
+  groupId         String
+  invitedName     String
+  email           String?
+  token           String    @unique @default(cuid())
+  createdById     String
+  claimedAt       DateTime?
+  claimedByUserId String?
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime?
+
+  group     Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("InvitesCreated", fields: [createdById], references: [id])
+  claimedBy User?  @relation("InvitesClaimed", fields: [claimedByUserId], references: [id])
 }
 
 model TransactionSplit {

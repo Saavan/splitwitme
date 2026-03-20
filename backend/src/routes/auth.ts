@@ -18,10 +18,11 @@ authRouter.get('/auth/google', (req, res, next) => {
   const { inviteToken, joinCode } = req.query
   if (inviteToken) req.session.inviteToken = inviteToken as string
   if (joinCode) req.session.joinCode = joinCode as string
+  const authOptions = { scope: ['profile', 'email'], prompt: 'select_account' } as any
   if (inviteToken || joinCode) {
-    req.session.save(() => passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next))
+    req.session.save(() => passport.authenticate('google', authOptions)(req, res, next))
   } else {
-    passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next)
+    passport.authenticate('google', authOptions)(req, res, next)
   }
 })
 

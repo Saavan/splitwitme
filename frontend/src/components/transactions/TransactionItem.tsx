@@ -15,6 +15,7 @@ export function TransactionItem({ transaction, currentUserId, onEdit, onDelete }
   const iPaid = transaction.paidById === currentUserId
   const myAmount = mySplit ? Number(mySplit.amount) : 0
   const netEffect = iPaid ? Number(transaction.amount) - myAmount : -myAmount
+  const sym = transaction.currency === 'CAD' ? 'CA$' : '$'
 
   return (
     <div className="flex items-center gap-3 py-3 border-b last:border-0">
@@ -28,12 +29,12 @@ export function TransactionItem({ transaction, currentUserId, onEdit, onDelete }
       <div className="flex-1 min-w-0">
         <p className="font-medium truncate">{transaction.description}</p>
         <p className="text-sm text-muted-foreground">
-          {transaction.paidBy.name} paid ${Number(transaction.amount).toFixed(2)} · {new Date(transaction.date).toLocaleDateString()}
+          {transaction.paidBy.name} paid {sym}{Number(transaction.amount).toFixed(2)} · {new Date(transaction.date).toLocaleDateString()}
         </p>
       </div>
       <div className="text-right shrink-0">
         <p className={`text-sm font-medium ${netEffect >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-          {netEffect >= 0 ? `+$${netEffect.toFixed(2)}` : `-$${Math.abs(netEffect).toFixed(2)}`}
+          {netEffect >= 0 ? `+${sym}${netEffect.toFixed(2)}` : `-${sym}${Math.abs(netEffect).toFixed(2)}`}
         </p>
         <p className="text-xs text-muted-foreground">{iPaid ? 'you paid' : 'you owe'}</p>
       </div>

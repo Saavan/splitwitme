@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../db'
 import { requireAuth } from '../middleware/requireAuth'
-import { simplifyDebts } from '../lib/debtSimplifier'
+import { computeDebtsPerCurrency } from '../lib/currencyDebts'
 import { buildVenmoUrl } from '../lib/venmo'
 
 export const debtsRouter = Router({ mergeParams: true })
@@ -24,43 +24,36 @@ debtsRouter.get('/', requireAuth, async (req, res, next) => {
     })
     if (!group) return res.status(404).json({ error: 'Group not found' })
 
-    // Calculate net balances
-    const balanceMap = new Map<string, { name: string; balance: number }>()
-    for (const { user } of group.members) {
-      balanceMap.set(user.id, { name: user.name, balance: 0 })
-    }
+    const venmoMap = new Map(group.members.map((m: { user: { id: string; venmoHandle: string | null } }) => [m.user.id, m.user.venmoHandle]))
 
-    for (const tx of group.transactions) {
-      for (const split of tx.splits) {
-        const splitAmount = Number(split.amount)
-        // Payer gets credited
-        const payer = balanceMap.get(tx.paidById)
-        if (payer) payer.balance += splitAmount
+    const rawDebts = computeDebtsPerCurrency(
+      group.transactions.map((tx: { paidById: string; amount: unknown; currency: string; splits: Array<{ userId: string; amount: unknown }> }) => ({
+        paidById: tx.paidById,
+        amount: Number(tx.amount),
+        currency: tx.currency,
+        splits: tx.splits.map((s) => ({ userId: s.userId, amount: Number(s.amount) })),
+      })),
+      group.members.map((m: { user: { id: string; name: string } }) => ({ userId: m.user.id, name: m.user.name }))
+    )
 
-        // Split user gets debited
-        const splitUser = balanceMap.get(split.userId)
-        if (splitUser) splitUser.balance -= splitAmount
-      }
-    }
+    // Attach venmoLinks (USD only — Venmo is US-only)
+    const perCurrency = Object.fromEntries(
+      Object.entries(rawDebts).map(([currency, data]) => [
+        currency,
+        {
+          ...data,
+          simplifiedDebts: data.simplifiedDebts.map(s => ({
+            ...s,
+            currency,
+            venmoLink: currency === 'USD' && venmoMap.get(s.toId)
+              ? buildVenmoUrl(venmoMap.get(s.toId) as string, s.amount, `SplitWitMe: ${group.name}`)
+              : null,
+          })),
+        },
+      ])
+    )
 
-    const rawBalances = Array.from(balanceMap.entries()).map(([userId, { name, balance }]) => ({
-      userId,
-      name,
-      balance: Math.round(balance * 100) / 100,
-    }))
-
-    const settlements = simplifyDebts(rawBalances)
-
-    // Build venmo links
-    const userVenmoMap = new Map(group.members.map((m: { user: { id: string; venmoHandle: string | null } }) => [m.user.id, m.user.venmoHandle]))
-    const simplifiedDebts = settlements.map(s => ({
-      ...s,
-      venmoLink: userVenmoMap.get(s.toId)
-        ? buildVenmoUrl(userVenmoMap.get(s.toId) as string, s.amount, `SplitWitMe: ${group.name}`)
-        : null,
-    }))
-
-    res.json({ rawBalances, simplifiedDebts })
+    res.json({ perCurrency })
   } catch (err) {
     next(err)
   }

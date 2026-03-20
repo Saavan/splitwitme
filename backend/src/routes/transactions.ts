@@ -39,6 +39,7 @@ const splitSchema = z.object({
 const txBodySchema = z.object({
   description: z.string().min(1),
   amount: z.number().positive(),
+  currency: z.enum(['USD', 'CAD']).default('USD'),
   date: z.string().optional(),
   paidById: z.string(),
   splits: z.array(splitSchema).min(1),
@@ -88,6 +89,7 @@ transactionsRouter.post('/', requireAuth, async (req, res, next) => {
           paidById: body.paidById,
           description: body.description,
           amount: body.amount,
+          currency: body.currency,
           date: body.date ? new Date(body.date) : new Date(),
           splits: {
             create: body.splits.map(s => ({ userId: s.userId, amount: s.amount }))

@@ -25,27 +25,30 @@ groupsRouter.get('/groups', requireAuth, async (req, res, next) => {
     })
 
     const groups = memberships.map(({ group }: { group: typeof memberships[number]['group'] }) => {
-      let netBalance = 0
+      const netBalances: Record<string, number> = {}
       for (const tx of group.transactions) {
+        const cur = (tx as any).currency || 'USD'
+        netBalances[cur] = netBalances[cur] || 0
         if (tx.paidById === req.user!.id) {
-          // I paid: others owe me their splits
           for (const split of tx.splits) {
             if (split.userId !== req.user!.id) {
-              netBalance += Number(split.amount)
+              netBalances[cur] += Number(split.amount)
             }
           }
         } else {
-          // Someone else paid: I owe my split
           const mySplit = tx.splits.find((s: { userId: string; amount: unknown }) => s.userId === req.user!.id)
-          if (mySplit) netBalance -= Number(mySplit.amount)
+          if (mySplit) netBalances[cur] -= Number(mySplit.amount)
         }
+      }
+      for (const cur of Object.keys(netBalances)) {
+        netBalances[cur] = Math.round(netBalances[cur] * 100) / 100
       }
 
       return {
         id: group.id,
         name: group.name,
         memberCount: group.members.length,
-        netBalance: Math.round(netBalance * 100) / 100,
+        netBalances,
         createdAt: group.createdAt,
       }
     })

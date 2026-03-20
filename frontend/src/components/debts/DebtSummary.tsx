@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/toast'
 
+const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', CAD: 'CA$' }
+
 interface DebtSummaryProps {
   debts: DebtsData
   groupId: string
@@ -41,6 +43,7 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
       await createTx.mutateAsync({
         description: `Cash payment to ${confirmingDebt.toName}`,
         amount,
+        currency: confirmingDebt.currency,
         paidById: currentUserId,
         splits: [{ userId: confirmingDebt.toId, amount }],
       })
@@ -51,7 +54,10 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
     }
   }
 
-  if (debts.simplifiedDebts.length === 0) {
+  const currencyEntries = Object.entries(debts.perCurrency)
+  const allSettled = currencyEntries.every(([, data]) => data.simplifiedDebts.length === 0)
+
+  if (allSettled || currencyEntries.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <p className="text-lg font-medium text-green-600">All settled up!</p>
@@ -60,33 +66,47 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
     )
   }
 
+  const sym = (currency: string) => CURRENCY_SYMBOL[currency] ?? currency
+
   return (
     <>
-      <div className="space-y-3">
-        {debts.simplifiedDebts.map((debt, i) => (
-          <div key={i} className="flex items-center justify-between gap-3 p-3 rounded-lg border">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <span className="font-medium text-sm truncate">{debt.fromName}</span>
-              <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="font-medium text-sm truncate">{debt.toName}</span>
+      <div className="space-y-6">
+        {currencyEntries.map(([currency, data]) => {
+          if (data.simplifiedDebts.length === 0) return null
+          return (
+            <div key={currency}>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                {currency} Debts
+              </p>
+              <div className="space-y-3">
+                {data.simplifiedDebts.map((debt, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 p-3 rounded-lg border">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="font-medium text-sm truncate">{debt.fromName}</span>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="font-medium text-sm truncate">{debt.toName}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-semibold">{sym(currency)}{debt.amount.toFixed(2)}</span>
+                      {debt.fromId === currentUserId && (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => openConfirm(debt)}>
+                            Paid in cash
+                          </Button>
+                          <VenmoButton
+                            venmoLink={debt.venmoLink}
+                            amount={debt.amount}
+                            recipientName={debt.toName}
+                          />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="font-semibold">${debt.amount.toFixed(2)}</span>
-              {debt.fromId === currentUserId && (
-                <>
-                  <Button size="sm" variant="outline" onClick={() => openConfirm(debt)}>
-                    Paid in cash
-                  </Button>
-                  <VenmoButton
-                    venmoLink={debt.venmoLink}
-                    amount={debt.amount}
-                    recipientName={debt.toName}
-                  />
-                </>
-              )}
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       <Dialog open={!!confirmingDebt} onOpenChange={open => { if (!open) closeConfirm() }}>
@@ -99,16 +119,18 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
               You're confirming you paid <strong>{confirmingDebt?.toName}</strong> in cash, outside the app.
             </p>
             <div className="space-y-1">
-              <label className="text-sm font-medium">Amount</label>
+              <label className="text-sm font-medium">Amount ({confirmingDebt?.currency})</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  {confirmingDebt ? sym(confirmingDebt.currency) : '$'}
+                </span>
                 <Input
                   type="number"
                   min="0.01"
                   step="0.01"
                   value={cashAmount}
                   onChange={e => setCashAmount(e.target.value)}
-                  className="pl-7"
+                  className="pl-8"
                 />
               </div>
             </div>

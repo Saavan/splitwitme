@@ -4,11 +4,15 @@ import type { Group } from '@/hooks/useGroups'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
+const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', CAD: 'CA$' }
+
 interface GroupCardProps {
   group: Group
 }
 
 export function GroupCard({ group }: GroupCardProps) {
+  const nonZeroBalances = Object.entries(group.netBalances).filter(([, v]) => Math.abs(v) > 0.001)
+
   return (
     <Link to={`/groups/${group.id}`}>
       <Card className="hover:shadow-md transition-shadow cursor-pointer">
@@ -23,16 +27,21 @@ export function GroupCard({ group }: GroupCardProps) {
             </div>
             <div className="text-right">
               <p className="text-xs text-muted-foreground mb-1">your balance</p>
-              <p className={cn(
-                'font-semibold',
-                group.netBalance > 0 && 'text-green-600',
-                group.netBalance < 0 && 'text-red-600',
-                group.netBalance === 0 && 'text-muted-foreground'
-              )}>
-                {group.netBalance === 0 ? 'settled up' : (
-                  `${group.netBalance > 0 ? '+' : ''}$${Math.abs(group.netBalance).toFixed(2)}`
-                )}
-              </p>
+              {nonZeroBalances.length === 0 ? (
+                <p className="font-semibold text-muted-foreground">settled up</p>
+              ) : (
+                <div className="space-y-0.5">
+                  {nonZeroBalances.map(([currency, balance]) => (
+                    <p key={currency} className={cn(
+                      'font-semibold text-sm',
+                      balance > 0 && 'text-green-600',
+                      balance < 0 && 'text-red-600',
+                    )}>
+                      {balance > 0 ? '+' : ''}{CURRENCY_SYMBOL[currency] ?? currency}{Math.abs(balance).toFixed(2)}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </CardContent>

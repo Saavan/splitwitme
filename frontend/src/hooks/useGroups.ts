@@ -6,7 +6,7 @@ export interface Group {
   id: string
   name: string
   memberCount: number
-  netBalance: number
+  netBalances: Record<string, number>
   createdAt: string
 }
 

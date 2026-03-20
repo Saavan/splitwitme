@@ -13,6 +13,7 @@ export interface Transaction {
   groupId: string
   description: string
   amount: string
+  currency: string
   date: string
   paidById: string
   paidBy: { id: string; name: string; avatarUrl: string | null }
@@ -22,6 +23,7 @@ export interface Transaction {
 export interface CreateTransactionInput {
   description: string
   amount: number
+  currency: string
   date?: string
   paidById: string
   splits: { userId: string; amount: number }[]

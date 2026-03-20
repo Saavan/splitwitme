@@ -27,6 +27,7 @@ export function TransactionForm({ members, currentUserId, initialData, onSubmit,
   const [date, setDate] = useState(
     initialData ? new Date(initialData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
   )
+  const [currency, setCurrency] = useState(initialData?.currency || 'USD')
   const [paidById, setPaidById] = useState(initialData?.paidById || currentUserId)
   const [splits, setSplits] = useState<{ userId: string; amount: number }[]>(
     initialData?.splits.map(s => ({ userId: s.userId, amount: Number(s.amount) })) || []
@@ -38,7 +39,7 @@ export function TransactionForm({ members, currentUserId, initialData, onSubmit,
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!isValid) return
-    await onSubmit({ description, amount, date, paidById, splits })
+    await onSubmit({ description, amount, currency, date, paidById, splits })
   }
 
   return (
@@ -54,11 +55,20 @@ export function TransactionForm({ members, currentUserId, initialData, onSubmit,
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="currency">Currency</Label>
+          <Select id="currency" value={currency} onValueChange={setCurrency}>
+            <SelectItem value="USD">USD</SelectItem>
+            <SelectItem value="CAD">CAD</SelectItem>
+          </Select>
+        </div>
         <div className="space-y-2">
           <Label htmlFor="amount">Amount</Label>
           <div className="relative">
-            <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">$</span>
+            <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">
+              {currency === 'CAD' ? 'CA$' : '$'}
+            </span>
             <Input
               id="amount"
               type="number"
@@ -67,7 +77,7 @@ export function TransactionForm({ members, currentUserId, initialData, onSubmit,
               placeholder="0.00"
               value={amount || ''}
               onChange={e => setAmount(parseFloat(e.target.value) || 0)}
-              className="pl-6"
+              className="pl-8"
               required
             />
           </div>

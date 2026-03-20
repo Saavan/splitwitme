@@ -13,12 +13,17 @@ export interface SimplifiedDebt {
   toId: string
   toName: string
   amount: number
+  currency: string
   venmoLink: string | null
 }
 
-export interface DebtsData {
+export interface CurrencyDebts {
   rawBalances: RawBalance[]
   simplifiedDebts: SimplifiedDebt[]
+}
+
+export interface DebtsData {
+  perCurrency: Record<string, CurrencyDebts>
 }
 
 export function useDebts(groupId: string) {

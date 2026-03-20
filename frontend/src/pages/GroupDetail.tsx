@@ -22,7 +22,7 @@ export function GroupDetail() {
   const navigate = useNavigate()
   const { data: user } = useAuth()
   const { data: group, isLoading: groupLoading } = useGroup(id!)
-  const { data: transactions, isLoading: txLoading } = useTransactions(id!)
+  const { data: transactions, isLoading: txLoading, isFetching: txFetching, refetch: refetchTx } = useTransactions(id!)
   const { data: debts } = useDebts(id!)
   const createTx = useCreateTransaction(id!)
   const updateTx = useUpdateTransaction(id!)
@@ -200,6 +200,18 @@ export function GroupDetail() {
 
         {tab === 'transactions' && (
           <div>
+            <div className="flex justify-end mb-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => refetchTx()}
+                disabled={txFetching}
+                className="text-muted-foreground"
+              >
+                <RefreshCw className={`h-4 w-4 mr-1 ${txFetching ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
             {txLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map(i => (

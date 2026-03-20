@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button'
 
 export function Login() {
   const handleGoogleLogin = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`
+    const base = import.meta.env.VITE_API_URL || ''
+    window.location.href = `${base}/auth/google`
   }
 
   return (

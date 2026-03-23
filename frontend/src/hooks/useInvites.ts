@@ -45,3 +45,25 @@ export function useInviteInfo(token: string) {
     retry: false,
   })
 }
+
+export function useClaimInvite(token: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (): Promise<{ groupId: string }> => {
+      const res = await apiClient.post(`/invites/${token}/claim`)
+      return res.data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['groups'] }),
+  })
+}
+
+export function useJoinViaCode(joinCode: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (): Promise<{ groupId: string }> => {
+      const res = await apiClient.post(`/invites/join/${joinCode}/join`)
+      return res.data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['groups'] }),
+  })
+}

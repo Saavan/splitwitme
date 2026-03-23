@@ -87,7 +87,52 @@ publicInvitesRouter.get('/join/:joinCode', async (req, res, next) => {
       select: { id: true, name: true, joinCode: true },
     })
     if (!group) return res.status(404).json({ error: 'Join link not found or has been regenerated' })
-    res.json({ groupName: group.name, joinCode: group.joinCode })
+    res.json({ groupId: group.id, groupName: group.name, joinCode: group.joinCode })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// POST /invites/:token/claim — for already-logged-in users
+publicInvitesRouter.post('/:token/claim', requireAuth, async (req, res, next) => {
+  try {
+    const invite = await prisma.groupInvite.findUnique({ where: { token: req.params.token } })
+    if (!invite) return res.status(404).json({ error: 'Invite not found' })
+    if (invite.expiresAt && invite.expiresAt < new Date()) {
+      return res.status(410).json({ error: 'Invite has expired' })
+    }
+    if (invite.claimedAt) return res.status(409).json({ error: 'Invite already claimed' })
+
+    const existing = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: invite.groupId, userId: req.user!.id } },
+    })
+    if (!existing) {
+      await prisma.$transaction([
+        prisma.groupMember.create({ data: { groupId: invite.groupId, userId: req.user!.id, role: 'MEMBER' } }),
+        prisma.groupInvite.update({
+          where: { token: req.params.token },
+          data: { claimedAt: new Date(), claimedByUserId: req.user!.id },
+        }),
+      ])
+    }
+    res.json({ groupId: invite.groupId })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// POST /join/:joinCode/join — for already-logged-in users
+publicInvitesRouter.post('/join/:joinCode/join', requireAuth, async (req, res, next) => {
+  try {
+    const group = await prisma.group.findUnique({ where: { joinCode: req.params.joinCode } })
+    if (!group) return res.status(404).json({ error: 'Join link not found or has been regenerated' })
+
+    await prisma.groupMember.upsert({
+      where: { groupId_userId: { groupId: group.id, userId: req.user!.id } },
+      update: {},
+      create: { groupId: group.id, userId: req.user!.id, role: 'MEMBER' },
+    })
+    res.json({ groupId: group.id })
   } catch (err) {
     next(err)
   }

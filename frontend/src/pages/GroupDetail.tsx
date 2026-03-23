@@ -12,6 +12,7 @@ import { TransactionItem } from '@/components/transactions/TransactionItem'
 import { TransactionForm } from '@/components/transactions/TransactionForm'
 import { DebtSummary } from '@/components/debts/DebtSummary'
 import { AddMemberDialog } from '@/components/groups/AddMemberDialog'
+import { MontrealBackground } from '@/components/MontrealBackground'
 import { useToast } from '@/components/ui/toast'
 import type { Transaction, CreateTransactionInput } from '@/hooks/useTransactions'
 
@@ -108,8 +109,11 @@ export function GroupDetail() {
     }
   }
 
+  const isMontreal = group.name === 'Montreal March 2026'
+
   return (
     <div className="min-h-screen bg-background">
+      {isMontreal && <MontrealBackground />}
       <Navbar />
       <main className="max-w-2xl mx-auto px-4 py-6">
         <div className="flex items-center gap-3 mb-6">

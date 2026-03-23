@@ -21,6 +21,21 @@ const fleurs = [
   { top: '92%', left: '78%', size: '1.4rem', opacity: 0.12 },
 ]
 
+// Each drip: horizontal position, stem width, max drip length, animation timing
+const drips = [
+  { pct:  5, w: 6,  h: 95,  dur: '5.8s', delay: '0s'   },
+  { pct: 13, w: 4,  h: 62,  dur: '4.4s', delay: '1.1s' },
+  { pct: 22, w: 9,  h: 130, dur: '7.2s', delay: '0.3s' },
+  { pct: 31, w: 5,  h: 78,  dur: '5.3s', delay: '2.0s' },
+  { pct: 40, w: 4,  h: 55,  dur: '4.7s', delay: '0.7s' },
+  { pct: 50, w: 10, h: 150, dur: '8.0s', delay: '1.6s' },
+  { pct: 59, w: 5,  h: 80,  dur: '5.5s', delay: '2.9s' },
+  { pct: 68, w: 7,  h: 105, dur: '6.5s', delay: '0.2s' },
+  { pct: 77, w: 4,  h: 60,  dur: '4.9s', delay: '1.8s' },
+  { pct: 85, w: 8,  h: 115, dur: '6.9s', delay: '0.9s' },
+  { pct: 93, w: 5,  h: 72,  dur: '5.1s', delay: '3.4s' },
+]
+
 export function MontrealBackground() {
   return (
     <>
@@ -32,15 +47,24 @@ export function MontrealBackground() {
           75%  { transform: rotate(calc(var(--r) - 6deg)) translateY(-6px) translateX(-4px); }
           100% { transform: rotate(var(--r)) translateY(0px) translateX(0px); }
         }
-        @keyframes mtl-drip {
-          0%   { height: 0; opacity: 0.7; }
-          60%  { opacity: 0.7; }
-          100% { height: 38px; opacity: 0; }
+
+        /* Slow viscous slide — syrup barely moves at first, then falls */
+        @keyframes mtl-syrup-stem {
+          0%   { height: 0px;       opacity: 0.90; }
+          15%  { height: calc(var(--dh) * 0.08); opacity: 0.90; }
+          45%  { height: calc(var(--dh) * 0.40); opacity: 0.85; }
+          75%  { height: var(--dh); opacity: 0.80; }
+          88%  { height: var(--dh); opacity: 0.55; }
+          100% { height: var(--dh); opacity: 0;    }
         }
-        @keyframes mtl-drip2 {
-          0%   { height: 0; opacity: 0.6; }
-          60%  { opacity: 0.6; }
-          100% { height: 28px; opacity: 0; }
+
+        /* Blob/teardrop at the tip — grows as drip extends, fades at the end */
+        @keyframes mtl-syrup-blob {
+          0%   { transform: translateY(0)          scaleX(1)   scaleY(1);   opacity: 0;    }
+          15%  { transform: translateY(0)          scaleX(1)   scaleY(1);   opacity: 0.85; }
+          75%  { transform: translateY(var(--dh))  scaleX(1.3) scaleY(1.1); opacity: 0.85; }
+          88%  { transform: translateY(var(--dh))  scaleX(1.5) scaleY(0.8); opacity: 0.55; }
+          100% { transform: translateY(var(--dh))  scaleX(1.5) scaleY(0.8); opacity: 0;    }
         }
       `}</style>
 
@@ -52,25 +76,54 @@ export function MontrealBackground() {
         }}
       />
 
-      {/* Maple syrup drips from top */}
-      <div className="fixed top-0 left-0 right-0 pointer-events-none z-0 overflow-hidden" style={{ height: '60px' }}>
-        {[8, 18, 28, 38, 52, 63, 74, 84, 91].map((pct, i) => (
+      {/* Syrup pool bar along the top edge — the reservoir the drips hang from */}
+      <div
+        className="fixed top-0 left-0 right-0 pointer-events-none z-0"
+        style={{
+          height: '7px',
+          background: 'linear-gradient(to bottom, rgba(101,44,5,0.82), rgba(146,64,14,0.68))',
+          boxShadow: '0 2px 8px rgba(101,44,5,0.35)',
+        }}
+      />
+
+      {/* Maple syrup drips */}
+      <div className="fixed top-0 left-0 right-0 pointer-events-none z-0 overflow-visible" style={{ height: 0 }}>
+        {drips.map((d, i) => (
           <div
             key={i}
             style={{
               position: 'absolute',
-              top: 0,
-              left: `${pct}%`,
-              width: i % 3 === 0 ? '5px' : '3px',
-              borderRadius: '0 0 3px 3px',
-              background: 'linear-gradient(to bottom, rgba(146,64,14,0.55), rgba(180,83,9,0.35))',
-              animationName: i % 2 === 0 ? 'mtl-drip' : 'mtl-drip2',
-              animationDuration: `${2.8 + (i * 0.4)}s`,
-              animationDelay: `${i * 0.35}s`,
-              animationTimingFunction: 'ease-in',
-              animationIterationCount: 'infinite',
+              top: '7px', // start just below the pool bar
+              left: `${d.pct}%`,
+              width: `${d.w}px`,
+              ['--dh' as any]: `${d.h}px`,
             }}
-          />
+          >
+            {/* Stem */}
+            <div
+              style={{
+                width: '100%',
+                borderRadius: '0 0 2px 2px',
+                background: `linear-gradient(to bottom, rgba(101,44,5,0.90), rgba(146,64,14,0.78))`,
+                animation: `mtl-syrup-stem ${d.dur} ${d.delay} cubic-bezier(0.6,0,0.9,1) infinite`,
+                ['--dh' as any]: `${d.h}px`,
+              }}
+            />
+            {/* Teardrop blob at the tip */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: `${-d.w * 0.4}px`,
+                width: `${d.w * 1.8}px`,
+                height: `${d.w * 1.8}px`,
+                borderRadius: '50%',
+                background: `rgba(146,64,14,0.82)`,
+                animation: `mtl-syrup-blob ${d.dur} ${d.delay} cubic-bezier(0.6,0,0.9,1) infinite`,
+                ['--dh' as any]: `${d.h - d.w}px`,
+              }}
+            />
+          </div>
         ))}
       </div>
 

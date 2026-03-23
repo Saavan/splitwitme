@@ -88,7 +88,7 @@ function buildApp(sessionData: Record<string, any> = {}) {
 // GET /auth/me
 // ---------------------------------------------------------------------------
 describe('GET /auth/me', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => { vi.clearAllMocks() })
 
   it('returns 401 when not authenticated', async () => {
     vi.mocked(requireAuth).mockImplementation((_req: any, res: Response) => {
@@ -119,7 +119,7 @@ describe('GET /auth/me', () => {
 // PATCH /auth/me
 // ---------------------------------------------------------------------------
 describe('PATCH /auth/me', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => { vi.clearAllMocks() })
 
   it('updates venmoHandle and returns the updated user', async () => {
     vi.mocked(requireAuth).mockImplementation((req: any, _res: Response, next: NextFunction) => {
@@ -175,7 +175,7 @@ describe('PATCH /auth/me', () => {
 // POST /auth/logout
 // ---------------------------------------------------------------------------
 describe('POST /auth/logout', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => { vi.clearAllMocks() })
 
   it('logs out the user and returns { success: true }', async () => {
     const app = express()
@@ -205,7 +205,7 @@ describe('POST /auth/logout', () => {
 // before passport.authenticate runs, so they survive regeneration.
 // ---------------------------------------------------------------------------
 describe('GET /auth/google/callback — session token preservation', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => { vi.clearAllMocks() })
 
   it('redirects to frontendUrl when no invite or join code is present', async () => {
     const app = buildApp() // no session data

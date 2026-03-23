@@ -224,7 +224,7 @@ describe('POST /invites/:token/claim', () => {
     expect(res.body.groupId).toBe('g-1')
     expect(prisma.$transaction).toHaveBeenCalledOnce()
     // Transaction args should include both a create and an update
-    const txArgs = vi.mocked(prisma.$transaction).mock.calls[0][0] as any[]
+    const txArgs = vi.mocked(prisma.$transaction).mock.calls[0][0] as unknown as any[]
     expect(txArgs).toHaveLength(2)
   })
 

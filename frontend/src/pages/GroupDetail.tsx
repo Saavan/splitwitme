@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Plus, UserPlus, ArrowLeft, Link, RefreshCw, X } from 'lucide-react'
 import { useGroup, useGroupJoinLink, useRegenerateJoinLink, useRemoveMember } from '@/hooks/useGroups'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useTransactions, useDeleteTransaction, useUpdateTransaction, useCreateTransaction } from '@/hooks/useTransactions'
 import { useDebts } from '@/hooks/useDebts'
 import { useAuth } from '@/hooks/useAuth'
@@ -16,7 +17,7 @@ import { MontrealBackground } from '@/components/MontrealBackground'
 import { useToast } from '@/components/ui/toast'
 import type { Transaction, CreateTransactionInput } from '@/hooks/useTransactions'
 
-type Tab = 'transactions' | 'debts'
+type Tab = 'transactions' | 'debts' | 'members'
 
 export function GroupDetail() {
   const { id } = useParams<{ id: string }>()
@@ -35,6 +36,7 @@ export function GroupDetail() {
 
   const [tab, setTab] = useState<Tab>('transactions')
   const [showAddMember, setShowAddMember] = useState(false)
+  const [removePending, setRemovePending] = useState<{ userId: string; name: string } | null>(null)
   const [showNewTx, setShowNewTx] = useState(false)
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
 
@@ -77,13 +79,15 @@ export function GroupDetail() {
     }
   }
 
-  const handleRemoveMember = async (userId: string, name: string) => {
-    if (!confirm(`Remove ${name} from this group?`)) return
+  const handleRemoveMember = async () => {
+    if (!removePending) return
     try {
-      await removeMember.mutateAsync(userId)
-      toast(`${name} removed from group`, 'success')
+      await removeMember.mutateAsync(removePending.userId)
+      toast(`${removePending.name} removed from group`, 'success')
+      setRemovePending(null)
     } catch (err: any) {
       toast(err.response?.data?.error || 'Failed to remove member', 'error')
+      setRemovePending(null)
     }
   }
 
@@ -154,53 +158,9 @@ export function GroupDetail() {
           </Button>
         </div>
 
-        {/* Members list — visible to all; remove buttons only for the owner */}
-        <div className="mt-4 mb-6 border rounded-lg p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Members</p>
-            {group.members.map(m => (
-              <div key={m.user.id} className="flex items-center gap-3 py-2 border-b last:border-0">
-                <div className="h-7 w-7 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center shrink-0 overflow-hidden">
-                  {m.user.avatarUrl
-                    ? <img src={m.user.avatarUrl} alt={m.user.name} className="h-full w-full object-cover" />
-                    : m.user.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()
-                  }
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium truncate block">{m.user.name}</span>
-                  {m.role === 'OWNER' && (
-                    <span className="text-xs text-muted-foreground">Owner</span>
-                  )}
-                </div>
-                {isOwner && m.role !== 'OWNER' && (
-                  <button
-                    onClick={() => handleRemoveMember(m.user.id, m.user.name)}
-                    disabled={removeMember.isPending}
-                    className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                    title={`Remove ${m.user.name}`}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-
-        {/* Pending invites */}
-        {group.invites?.length > 0 && (
-          <div className="mt-4 mb-6 border rounded-lg p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Pending Invites</p>
-            {group.invites.map(invite => (
-              <div key={invite.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                <span className="text-sm">{invite.invitedName}</span>
-                <Badge variant="secondary">Pending</Badge>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Tabs */}
         <div className="flex border-b mb-6">
-          {(['transactions', 'debts'] as Tab[]).map(t => (
+          {(['transactions', 'debts', 'members'] as Tab[]).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -296,9 +256,66 @@ export function GroupDetail() {
             )}
           </div>
         )}
+
+        {tab === 'members' && (
+          <div className="space-y-4">
+            <div className="border rounded-lg divide-y">
+              {group.members.map(m => (
+                <div key={m.user.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center shrink-0 overflow-hidden">
+                    {m.user.avatarUrl
+                      ? <img src={m.user.avatarUrl} alt={m.user.name} className="h-full w-full object-cover" />
+                      : m.user.name.split(' ').map((p: string) => p[0]).join('').slice(0, 2).toUpperCase()
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{m.user.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{m.user.email}</p>
+                  </div>
+                  {m.role === 'OWNER' && (
+                    <Badge variant="secondary">Owner</Badge>
+                  )}
+                  {isOwner && m.role !== 'OWNER' && (
+                    <button
+                      onClick={() => setRemovePending({ userId: m.user.id, name: m.user.name })}
+                      disabled={removeMember.isPending}
+                      className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                      title={`Remove ${m.user.name}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {group.invites?.length > 0 && (
+              <div className="border rounded-lg divide-y">
+                <p className="px-4 pt-3 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">Pending Invites</p>
+                {group.invites.map(invite => (
+                  <div key={invite.id} className="flex items-center justify-between px-4 py-3">
+                    <span className="text-sm">{invite.invitedName}</span>
+                    <Badge variant="secondary">Pending</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       <AddMemberDialog groupId={id!} open={showAddMember} onOpenChange={setShowAddMember} />
+
+      <ConfirmDialog
+        open={!!removePending}
+        title="Remove member"
+        description={removePending ? `Remove ${removePending.name} from this group?` : ''}
+        confirmLabel="Remove"
+        confirmVariant="destructive"
+        isPending={removeMember.isPending}
+        onConfirm={handleRemoveMember}
+        onCancel={() => setRemovePending(null)}
+      />
     </div>
   )
 }

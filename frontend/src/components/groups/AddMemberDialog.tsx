@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useToast } from '@/components/ui/toast'
 
 type DialogTab = 'search' | 'invite'
@@ -24,7 +25,7 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
   const [searchInput, setSearchInput] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
-  const [addingUserId, setAddingUserId] = useState<string | null>(null)
+  const [pendingUser, setPendingUser] = useState<UserSearchResult | null>(null)
   const searchRef = useRef<HTMLDivElement>(null)
   const addMember = useAddMember(groupId)
   const { data: searchResults = [], isFetching } = useUserSearch(debouncedQ, groupId)
@@ -64,6 +65,7 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
     setSearchInput('')
     setDebouncedQ('')
     setShowDropdown(false)
+    setPendingUser(null)
     setInvitedName('')
     setInviteEmail('')
     setCreatedInviteUrl(null)
@@ -71,19 +73,15 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
     onOpenChange(false)
   }
 
-  const handleSelectUser = async (user: UserSearchResult) => {
-    setShowDropdown(false)
-    setAddingUserId(user.id)
+  const handleConfirmAdd = async () => {
+    if (!pendingUser) return
     try {
-      await addMember.mutateAsync(user.email)
-      toast(`${user.name} added to the group!`, 'success')
-      setSearchInput('')
-      setDebouncedQ('')
-      onOpenChange(false)
+      await addMember.mutateAsync(pendingUser.email)
+      toast(`${pendingUser.name} added to the group!`, 'success')
+      handleClose()
     } catch (err: any) {
       toast(err.response?.data?.error || 'Failed to add member', 'error')
-    } finally {
-      setAddingUserId(null)
+      setPendingUser(null)
     }
   }
 
@@ -112,6 +110,7 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
     name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
@@ -184,8 +183,8 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
                             ? 'opacity-40 cursor-not-allowed'
                             : 'hover:bg-muted'
                         }`}
-                        onClick={() => !user.isMember && handleSelectUser(user)}
-                        disabled={user.isMember || addingUserId === user.id}
+                        onClick={() => { if (!user.isMember) { setShowDropdown(false); setPendingUser(user) } }}
+                        disabled={user.isMember}
                       >
                         {/* Avatar */}
                         <div className="h-8 w-8 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center shrink-0 overflow-hidden">
@@ -279,5 +278,16 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
         )}
       </DialogContent>
     </Dialog>
+
+    <ConfirmDialog
+      open={!!pendingUser}
+      title="Add member"
+      description={pendingUser ? `Add ${pendingUser.name} (${pendingUser.email}) to this group?` : ''}
+      confirmLabel="Add"
+      isPending={addMember.isPending}
+      onConfirm={handleConfirmAdd}
+      onCancel={() => setPendingUser(null)}
+    />
+    </>
   )
 }

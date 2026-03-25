@@ -33,7 +33,7 @@ const REMINDER_COPY: Record<ReminderLevel, {
 }> = {
   friendly: {
     subject: `Psst! A gentle nudge about some money 🐥`,
-    image: 'https://splitwitme-frontend.vercel.app/duck_friendly.png',
+    image: 'https://splitwitme.patel.space/duck_friendly.png',
     imageAlt: 'A friendly duck',
     body: `<p style="font-size: 16px; line-height: 1.5;">
           <strong>CREDITOR_NAME</strong> just wanted to give you a friendly little reminder that
@@ -49,7 +49,7 @@ const REMINDER_COPY: Record<ReminderLevel, {
   },
   medium: {
     subject: `⚠️ PAY UP: you owe CREDITOR_NAME AMOUNT`,
-    image: 'https://splitwitme-frontend.vercel.app/duck_medium.png',
+    image: 'https://splitwitme.patel.space/duck_medium.png',
     imageAlt: 'Pay me my money',
     body: `<p style="font-size: 16px; line-height: 1.5;">
           <strong>CREDITOR_NAME</strong> has noticed that you still owe them
@@ -65,7 +65,7 @@ const REMINDER_COPY: Record<ReminderLevel, {
   },
   angry: {
     subject: `🦆🔪 FINAL WARNING: pay CREDITOR_NAME AMOUNT NOW`,
-    image: 'https://splitwitme-frontend.vercel.app/duck_angry.png',
+    image: 'https://splitwitme.patel.space/duck_angry.png',
     imageAlt: 'A very angry duck',
     body: `<p style="font-size: 16px; line-height: 1.5;">
           <strong>CREDITOR_NAME</strong> is DONE waiting.

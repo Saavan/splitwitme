@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { authRouter } from './auth'
+import { adminRouter } from './admin'
 import { groupsRouter } from './groups'
 import { membersRouter, usersRouter } from './members'
 import { transactionsRouter } from './transactions'
@@ -9,6 +10,7 @@ import { invitesRouter, publicInvitesRouter } from './invites'
 export const router = Router()
 
 router.use(authRouter)
+router.use(adminRouter)
 router.use(usersRouter)
 router.use(groupsRouter)
 router.use('/groups/:id/members', membersRouter)

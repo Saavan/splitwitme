@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { LogOut, SplitSquareHorizontal } from 'lucide-react'
+import { LogOut, SplitSquareHorizontal, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/api/client'
@@ -26,6 +26,13 @@ export function Navbar() {
         </Link>
         {user && (
           <div className="flex items-center gap-3">
+            {user.email === 'saavs94@gmail.com' && (
+              <Link to="/admin" title="Admin">
+                <Button variant="ghost" size="icon">
+                  <ShieldCheck className="h-4 w-4" />
+                </Button>
+              </Link>
+            )}
             <Avatar className="h-8 w-8">
               {user.avatarUrl ? (
                 <AvatarImage src={user.avatarUrl} alt={user.name} />

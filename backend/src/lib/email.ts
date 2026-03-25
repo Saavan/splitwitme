@@ -34,11 +34,35 @@ export async function sendBalanceReminderEmail(
   await resend.emails.send({
     from: 'SplitWitMe <splitwitme@patel.space>',
     to,
-    subject: `Reminder: you owe ${creditorName} ${amount} in ${groupName}`,
+    subject: `⚠️ PAY UP: you owe ${creditorName} ${amount}`,
     html: `
-      <p>Hi ${debtorName},</p>
-      <p>Just a friendly reminder that you owe <strong>${creditorName}</strong> <strong>${amount}</strong> in the group <strong>${groupName}</strong> on SplitWitMe.</p>
-      <p><a href="${groupUrl}">View balances in ${groupName}</a></p>
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+        <img
+          src="https://splitwitme-frontend.vercel.app/duck_knife.png"
+          alt="Pay me my money"
+          style="width: 100%; border-radius: 12px; margin-bottom: 24px;"
+        />
+        <h2 style="margin: 0 0 12px;">Hey ${debtorName},</h2>
+        <p style="font-size: 16px; line-height: 1.5;">
+          <strong>${creditorName}</strong> has noticed that you still owe them
+          <strong style="font-size: 18px;">${amount}</strong> in <strong>${groupName}</strong>.
+        </p>
+        <p style="font-size: 16px; line-height: 1.5;">
+          They're being <em>very</em> patient. The duck, however, is not.
+        </p>
+        <p style="font-size: 16px; line-height: 1.5;">
+          Please settle up before things get awkward. Or worse.
+        </p>
+        <a
+          href="${groupUrl}"
+          style="display: inline-block; margin-top: 16px; padding: 12px 24px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px;"
+        >
+          View my balance →
+        </a>
+        <p style="margin-top: 24px; font-size: 12px; color: #888;">
+          This has been a message from SplitWitMe and one very determined duck.
+        </p>
+      </div>
     `,
   })
 }

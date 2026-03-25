@@ -10,7 +10,7 @@ export async function sendAddedToGroupEmail(
 ): Promise<void> {
   const resend = new Resend(config.resendApiKey)
   await resend.emails.send({
-    from: 'SplitWitMe <noreply@splitwitme.app>',
+    from: 'SplitWitMe <splitwitme@patel.space>',
     to,
     subject: `${adderName} added you to ${groupName} on SplitWitMe`,
     html: `
@@ -31,7 +31,7 @@ export async function sendInviteEmail(
 ): Promise<void> {
   const resend = new Resend(config.resendApiKey)
   await resend.emails.send({
-    from: 'SplitWitMe <noreply@splitwitme.app>',
+    from: 'SplitWitMe <splitwitme@patel.space>',
     to,
     subject: `${inviterName} invited you to join ${groupName} on SplitWitMe`,
     html: `

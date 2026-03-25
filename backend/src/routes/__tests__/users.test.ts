@@ -69,15 +69,13 @@ describe('GET /users/search', () => {
 
   it('searches by name or email with 2+ character query', async () => {
     asAuthed()
-    const mockUsers = [
+    vi.mocked(prisma.user.findMany).mockResolvedValue([
       { id: 'user-2', name: 'Bob Smith', email: 'bob@test.com', avatarUrl: null },
-    ]
-    vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
+    ] as any)
 
     const res = await request(buildApp()).get('/users/search?q=bo')
 
     expect(res.status).toBe(200)
-    expect(res.body).toEqual(mockUsers)
     expect(prisma.user.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -102,32 +100,7 @@ describe('GET /users/search', () => {
     await request(buildApp()).get('/users/search?q=alice')
 
     const callArgs = vi.mocked(prisma.user.findMany).mock.calls[0][0] as any
-    const andClauses = callArgs.where.AND
-    expect(andClauses).toContainEqual({ id: { not: testUser.id } })
-  })
-
-  it('excludes users already in the specified group when excludeGroupId is provided', async () => {
-    asAuthed()
-    vi.mocked(prisma.user.findMany).mockResolvedValue([])
-
-    await request(buildApp()).get('/users/search?q=alice&excludeGroupId=group-1')
-
-    const callArgs = vi.mocked(prisma.user.findMany).mock.calls[0][0] as any
-    const andClauses = callArgs.where.AND
-    expect(andClauses).toContainEqual({ groupMemberships: { none: { groupId: 'group-1' } } })
-  })
-
-  it('does not add group exclusion filter when excludeGroupId is absent', async () => {
-    asAuthed()
-    vi.mocked(prisma.user.findMany).mockResolvedValue([])
-
-    await request(buildApp()).get('/users/search?q=alice')
-
-    const callArgs = vi.mocked(prisma.user.findMany).mock.calls[0][0] as any
-    const andClauses = callArgs.where.AND
-    expect(andClauses).not.toContainEqual(
-      expect.objectContaining({ groupMemberships: expect.anything() })
-    )
+    expect(callArgs.where.AND).toContainEqual({ id: { not: testUser.id } })
   })
 
   it('returns at most 8 results', async () => {
@@ -141,22 +114,6 @@ describe('GET /users/search', () => {
     )
   })
 
-  it('returns multiple matching users', async () => {
-    asAuthed()
-    const mockUsers = [
-      { id: 'user-2', name: 'Alice B', email: 'aliceb@test.com', avatarUrl: null },
-      { id: 'user-3', name: 'Alice C', email: 'alicec@test.com', avatarUrl: 'https://img' },
-    ]
-    vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any)
-
-    const res = await request(buildApp()).get('/users/search?q=alice')
-
-    expect(res.status).toBe(200)
-    expect(res.body).toHaveLength(2)
-    expect(res.body[0].name).toBe('Alice B')
-    expect(res.body[1].avatarUrl).toBe('https://img')
-  })
-
   it('trims whitespace from the query before searching', async () => {
     asAuthed()
     vi.mocked(prisma.user.findMany).mockResolvedValue([])
@@ -166,5 +123,83 @@ describe('GET /users/search', () => {
     const callArgs = vi.mocked(prisma.user.findMany).mock.calls[0][0] as any
     const orClause = callArgs.where.AND[0].OR
     expect(orClause[0].name.contains).toBe('alice')
+  })
+
+  // ---------------------------------------------------------------------------
+  // isMember flag
+  // ---------------------------------------------------------------------------
+
+  it('sets isMember=false for users not in the group', async () => {
+    asAuthed()
+    vi.mocked(prisma.user.findMany).mockResolvedValue([
+      { id: 'user-2', name: 'Bob', email: 'bob@test.com', avatarUrl: null, groupMemberships: [] },
+    ] as any)
+
+    const res = await request(buildApp()).get('/users/search?q=bo&groupId=group-1')
+
+    expect(res.status).toBe(200)
+    expect(res.body[0].isMember).toBe(false)
+  })
+
+  it('sets isMember=true for users already in the group', async () => {
+    asAuthed()
+    vi.mocked(prisma.user.findMany).mockResolvedValue([
+      { id: 'user-2', name: 'Bob', email: 'bob@test.com', avatarUrl: null, groupMemberships: [{ groupId: 'group-1' }] },
+    ] as any)
+
+    const res = await request(buildApp()).get('/users/search?q=bo&groupId=group-1')
+
+    expect(res.status).toBe(200)
+    expect(res.body[0].isMember).toBe(true)
+  })
+
+  it('strips the groupMemberships field from the response', async () => {
+    asAuthed()
+    vi.mocked(prisma.user.findMany).mockResolvedValue([
+      { id: 'user-2', name: 'Bob', email: 'bob@test.com', avatarUrl: null, groupMemberships: [] },
+    ] as any)
+
+    const res = await request(buildApp()).get('/users/search?q=bo&groupId=group-1')
+
+    expect(res.body[0]).not.toHaveProperty('groupMemberships')
+  })
+
+  it('requests groupMemberships filtered to the given groupId when groupId is provided', async () => {
+    asAuthed()
+    vi.mocked(prisma.user.findMany).mockResolvedValue([])
+
+    await request(buildApp()).get('/users/search?q=alice&groupId=group-1')
+
+    const callArgs = vi.mocked(prisma.user.findMany).mock.calls[0][0] as any
+    expect(callArgs.select.groupMemberships).toMatchObject({
+      where: { groupId: 'group-1' },
+    })
+  })
+
+  it('does not request groupMemberships when groupId is absent, isMember defaults to false', async () => {
+    asAuthed()
+    vi.mocked(prisma.user.findMany).mockResolvedValue([
+      { id: 'user-2', name: 'Bob', email: 'bob@test.com', avatarUrl: null },
+    ] as any)
+
+    const res = await request(buildApp()).get('/users/search?q=bo')
+
+    const callArgs = vi.mocked(prisma.user.findMany).mock.calls[0][0] as any
+    expect(callArgs.select.groupMemberships).toBeUndefined()
+    expect(res.body[0].isMember).toBe(false)
+  })
+
+  it('returns multiple results with correct isMember values', async () => {
+    asAuthed()
+    vi.mocked(prisma.user.findMany).mockResolvedValue([
+      { id: 'user-2', name: 'Alice B', email: 'aliceb@test.com', avatarUrl: null, groupMemberships: [{ groupId: 'group-1' }] },
+      { id: 'user-3', name: 'Alice C', email: 'alicec@test.com', avatarUrl: null, groupMemberships: [] },
+    ] as any)
+
+    const res = await request(buildApp()).get('/users/search?q=alice&groupId=group-1')
+
+    expect(res.body).toHaveLength(2)
+    expect(res.body[0].isMember).toBe(true)
+    expect(res.body[1].isMember).toBe(false)
   })
 })

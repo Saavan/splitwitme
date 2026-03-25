@@ -6,14 +6,15 @@ export interface UserSearchResult {
   name: string
   email: string
   avatarUrl: string | null
+  isMember: boolean
 }
 
-export function useUserSearch(q: string, excludeGroupId?: string) {
+export function useUserSearch(q: string, groupId?: string) {
   return useQuery<UserSearchResult[]>({
-    queryKey: ['users', 'search', q, excludeGroupId],
+    queryKey: ['users', 'search', q, groupId],
     queryFn: async () => {
       const params = new URLSearchParams({ q })
-      if (excludeGroupId) params.set('excludeGroupId', excludeGroupId)
+      if (groupId) params.set('groupId', groupId)
       const res = await apiClient.get(`/users/search?${params}`)
       return res.data
     },

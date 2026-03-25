@@ -179,9 +179,13 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
                     {!isFetching && searchResults.map(user => (
                       <button
                         key={user.id}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted text-left transition-colors disabled:opacity-50"
-                        onClick={() => handleSelectUser(user)}
-                        disabled={addingUserId === user.id}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+                          user.isMember
+                            ? 'opacity-40 cursor-not-allowed'
+                            : 'hover:bg-muted'
+                        }`}
+                        onClick={() => !user.isMember && handleSelectUser(user)}
+                        disabled={user.isMember || addingUserId === user.id}
                       >
                         {/* Avatar */}
                         <div className="h-8 w-8 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center shrink-0 overflow-hidden">
@@ -194,7 +198,10 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
                           <p className="text-sm font-medium truncate">{user.name}</p>
                           <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                         </div>
-                        <UserPlus className="h-4 w-4 text-muted-foreground shrink-0" />
+                        {user.isMember
+                          ? <span className="text-xs text-muted-foreground shrink-0">Already in group</span>
+                          : <UserPlus className="h-4 w-4 text-muted-foreground shrink-0" />
+                        }
                       </button>
                     ))}
                   </div>

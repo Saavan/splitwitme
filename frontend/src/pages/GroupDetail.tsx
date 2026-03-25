@@ -154,9 +154,8 @@ export function GroupDetail() {
           </Button>
         </div>
 
-        {/* Members list — remove buttons visible to the owner */}
-        {isOwner && (
-          <div className="mt-4 mb-6 border rounded-lg p-4">
+        {/* Members list — visible to all; remove buttons only for the owner */}
+        <div className="mt-4 mb-6 border rounded-lg p-4">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Members</p>
             {group.members.map(m => (
               <div key={m.user.id} className="flex items-center gap-3 py-2 border-b last:border-0">
@@ -172,7 +171,7 @@ export function GroupDetail() {
                     <span className="text-xs text-muted-foreground">Owner</span>
                   )}
                 </div>
-                {m.role !== 'OWNER' && (
+                {isOwner && m.role !== 'OWNER' && (
                   <button
                     onClick={() => handleRemoveMember(m.user.id, m.user.name)}
                     disabled={removeMember.isPending}
@@ -185,7 +184,6 @@ export function GroupDetail() {
               </div>
             ))}
           </div>
-        )}
 
         {/* Pending invites */}
         {group.invites?.length > 0 && (

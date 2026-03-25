@@ -25,13 +25,14 @@ export function AdminPage() {
   const { toast } = useToast()
   const [pendingDelete, setPendingDelete] = useState<AdminUser | null>(null)
 
-  const { data: users = [], isLoading } = useQuery<AdminUser[]>({
+  const { data: users = [], isLoading, isError, error } = useQuery<AdminUser[]>({
     queryKey: ['admin', 'users'],
     queryFn: async () => {
       const res = await apiClient.get('/admin/users')
       return res.data
     },
-    enabled: me?.email === ADMIN_EMAIL,
+    enabled: !!me,
+    retry: false,
   })
 
   const deleteUser = useMutation({
@@ -74,7 +75,11 @@ export function AdminPage() {
           {isLoading ? '…' : `${users.length} users on the platform`}
         </p>
 
-        {isLoading ? (
+        {isError ? (
+          <p className="text-sm text-destructive">
+            Failed to load users: {(error as any)?.response?.data?.error ?? (error as any)?.message ?? 'Unknown error'}
+          </p>
+        ) : isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => <div key={i} className="h-14 rounded bg-muted animate-pulse" />)}
           </div>

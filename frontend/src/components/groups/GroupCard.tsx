@@ -26,19 +26,26 @@ export function GroupCard({ group }: GroupCardProps) {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground mb-1">your balance</p>
               {nonZeroBalances.length === 0 ? (
-                <p className="font-semibold text-muted-foreground">settled up</p>
+                <>
+                  <p className="text-xs text-muted-foreground mb-1">your balance</p>
+                  <p className="font-semibold text-muted-foreground">settled up</p>
+                </>
               ) : (
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   {nonZeroBalances.map(([currency, balance]) => (
-                    <p key={currency} className={cn(
-                      'font-semibold text-sm',
-                      balance > 0 && 'text-green-600',
-                      balance < 0 && 'text-red-600',
-                    )}>
-                      {balance > 0 ? '+' : ''}{CURRENCY_SYMBOL[currency] ?? currency}{Math.abs(balance).toFixed(2)}
-                    </p>
+                    <div key={currency}>
+                      <p className="text-xs text-muted-foreground mb-0.5">
+                        {balance > 0 ? 'you are owed' : 'you owe'}
+                      </p>
+                      <p className={cn(
+                        'font-semibold text-sm',
+                        balance > 0 && 'text-green-600',
+                        balance < 0 && 'text-red-600',
+                      )}>
+                        {CURRENCY_SYMBOL[currency] ?? currency}{Math.abs(balance).toFixed(2)}
+                      </p>
+                    </div>
                   ))}
                 </div>
               )}

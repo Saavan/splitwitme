@@ -1,8 +1,11 @@
 import { Router } from 'express'
+import { z } from 'zod'
 import { prisma } from '../db'
 import { requireAuth } from '../middleware/requireAuth'
 import { computeDebtsPerCurrency } from '../lib/currencyDebts'
 import { buildVenmoUrl } from '../lib/venmo'
+import { sendBalanceReminderEmail } from '../lib/email'
+import { config } from '../config'
 
 export const debtsRouter = Router({ mergeParams: true })
 
@@ -54,6 +57,42 @@ debtsRouter.get('/', requireAuth, async (req, res, next) => {
     )
 
     res.json({ perCurrency })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// POST /groups/:id/debts/remind
+debtsRouter.post('/remind', requireAuth, async (req, res, next) => {
+  try {
+    const schema = z.object({
+      debtorUserId: z.string(),
+      amount: z.number().positive(),
+      currency: z.string(),
+    })
+    const { debtorUserId, amount, currency } = schema.parse(req.body)
+
+    const [membership, group, debtor] = await Promise.all([
+      prisma.groupMember.findUnique({
+        where: { groupId_userId: { groupId: req.params.id, userId: req.user!.id } },
+      }),
+      prisma.group.findUnique({ where: { id: req.params.id }, select: { name: true } }),
+      prisma.user.findUnique({ where: { id: debtorUserId }, select: { name: true, email: true } }),
+    ])
+    if (!membership) return res.status(403).json({ error: 'Not a member of this group' })
+    if (!group) return res.status(404).json({ error: 'Group not found' })
+    if (!debtor) return res.status(404).json({ error: 'User not found' })
+
+    const sym: Record<string, string> = { USD: '$', CAD: 'CA$' }
+    const amountStr = `${sym[currency] ?? currency}${amount.toFixed(2)}`
+    const groupUrl = `${config.frontendUrl}/groups/${req.params.id}`
+
+    if (config.resendApiKey) {
+      sendBalanceReminderEmail(debtor.email, debtor.name, req.user!.name, amountStr, group.name, groupUrl)
+        .catch(err => console.error('Failed to send reminder email:', err))
+    }
+
+    res.json({ sent: true })
   } catch (err) {
     next(err)
   }

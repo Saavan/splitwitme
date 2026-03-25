@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import apiClient from '@/api/client'
 
 export interface RawBalance {
@@ -24,6 +24,15 @@ export interface CurrencyDebts {
 
 export interface DebtsData {
   perCurrency: Record<string, CurrencyDebts>
+}
+
+export function useSendReminder(groupId: string) {
+  return useMutation({
+    mutationFn: async (data: { debtorUserId: string; amount: number; currency: string }) => {
+      const res = await apiClient.post(`/groups/${groupId}/debts/remind`, data)
+      return res.data
+    },
+  })
 }
 
 export function useDebts(groupId: string) {

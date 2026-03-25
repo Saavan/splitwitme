@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Bell } from 'lucide-react'
 import type { DebtsData, SimplifiedDebt } from '@/hooks/useDebts'
 import { useCreateTransaction } from '@/hooks/useTransactions'
+import { useSendReminder } from '@/hooks/useDebts'
 import { VenmoButton } from './VenmoButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,7 +21,17 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
   const [confirmingDebt, setConfirmingDebt] = useState<SimplifiedDebt | null>(null)
   const [cashAmount, setCashAmount] = useState('')
   const createTx = useCreateTransaction(groupId)
+  const sendReminder = useSendReminder(groupId)
   const { toast } = useToast()
+
+  const handleRemind = async (debt: SimplifiedDebt) => {
+    try {
+      await sendReminder.mutateAsync({ debtorUserId: debt.fromId, amount: debt.amount, currency: debt.currency })
+      toast(`Reminder sent to ${debt.fromName}!`, 'success')
+    } catch {
+      toast('Failed to send reminder', 'error')
+    }
+  }
 
   const openConfirm = (debt: SimplifiedDebt) => {
     setConfirmingDebt(debt)
@@ -88,6 +99,18 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="font-semibold">{sym(currency)}{debt.amount.toFixed(2)}</span>
+                      {debt.toId === currentUserId && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRemind(debt)}
+                          disabled={sendReminder.isPending}
+                          title={`Send reminder to ${debt.fromName}`}
+                        >
+                          <Bell className="h-3.5 w-3.5 mr-1" />
+                          Remind
+                        </Button>
+                      )}
                       {debt.fromId === currentUserId && (
                         <>
                           <Button size="sm" variant="outline" onClick={() => openConfirm(debt)}>

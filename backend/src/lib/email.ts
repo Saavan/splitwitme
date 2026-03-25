@@ -22,6 +22,27 @@ export async function sendAddedToGroupEmail(
   })
 }
 
+export async function sendBalanceReminderEmail(
+  to: string,
+  debtorName: string,
+  creditorName: string,
+  amount: string,
+  groupName: string,
+  groupUrl: string
+): Promise<void> {
+  const resend = new Resend(config.resendApiKey)
+  await resend.emails.send({
+    from: 'SplitWitMe <splitwitme@patel.space>',
+    to,
+    subject: `Reminder: you owe ${creditorName} ${amount} in ${groupName}`,
+    html: `
+      <p>Hi ${debtorName},</p>
+      <p>Just a friendly reminder that you owe <strong>${creditorName}</strong> <strong>${amount}</strong> in the group <strong>${groupName}</strong> on SplitWitMe.</p>
+      <p><a href="${groupUrl}">View balances in ${groupName}</a></p>
+    `,
+  })
+}
+
 export async function sendInviteEmail(
   to: string,
   invitedName: string,

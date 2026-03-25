@@ -149,38 +149,38 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
           <div className="flex flex-col gap-3 mt-2">
             <Button
               variant="outline"
-              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left"
+              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left w-full"
               disabled={sendReminder.isPending}
               onClick={() => handleSendReminder('friendly')}
             >
-              <img src="/duck_friendly.png" alt="Friendly duck" className="h-10 w-10 object-contain shrink-0" />
-              <div>
+              <img src="/duck_friendly.png" alt="Friendly duck" className="h-12 w-auto object-contain shrink-0" />
+              <div className="min-w-0">
                 <p className="font-medium text-sm">Eh, sometime soon</p>
-                <p className="text-xs text-muted-foreground">A polite nudge. The duck is happy.</p>
+                <p className="text-xs text-muted-foreground whitespace-normal">A polite nudge. The duck is happy.</p>
               </div>
             </Button>
             <Button
               variant="outline"
-              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left"
+              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left w-full"
               disabled={sendReminder.isPending}
               onClick={() => handleSendReminder('medium')}
             >
-              <img src="/duck_medium.png" alt="Medium duck" className="h-10 w-10 object-contain shrink-0" />
-              <div>
+              <img src="/duck_medium.png" alt="Medium duck" className="h-12 w-auto object-contain shrink-0" />
+              <div className="min-w-0">
                 <p className="font-medium text-sm">I'd like it back</p>
-                <p className="text-xs text-muted-foreground">Firm but fair. The duck is not amused.</p>
+                <p className="text-xs text-muted-foreground whitespace-normal">Firm but fair. The duck is not amused.</p>
               </div>
             </Button>
             <Button
               variant="outline"
-              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left border-red-200 hover:border-red-400 hover:bg-red-50"
+              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left w-full border-red-200 hover:border-red-400 hover:bg-red-50"
               disabled={sendReminder.isPending}
               onClick={() => handleSendReminder('angry')}
             >
-              <img src="/duck_angry.png" alt="Angry duck" className="h-10 w-10 object-contain shrink-0" />
-              <div>
-                <p className="font-medium text-sm text-red-600">I'm calling the mob to collect my money</p>
-                <p className="text-xs text-muted-foreground">Final warning. The duck has been informed.</p>
+              <img src="/duck_angry.png" alt="Angry duck" className="h-12 w-auto object-contain shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium text-sm text-red-600 whitespace-normal">I'm calling the mob to collect my money</p>
+                <p className="text-xs text-muted-foreground whitespace-normal">Final warning. The duck has been informed.</p>
               </div>
             </Button>
           </div>

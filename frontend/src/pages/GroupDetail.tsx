@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Plus, UserPlus, ArrowLeft, Link, RefreshCw } from 'lucide-react'
-import { useGroup, useGroupJoinLink, useRegenerateJoinLink } from '@/hooks/useGroups'
+import { Plus, UserPlus, ArrowLeft, Link, RefreshCw, X } from 'lucide-react'
+import { useGroup, useGroupJoinLink, useRegenerateJoinLink, useRemoveMember } from '@/hooks/useGroups'
 import { useTransactions, useDeleteTransaction, useUpdateTransaction, useCreateTransaction } from '@/hooks/useTransactions'
 import { useDebts } from '@/hooks/useDebts'
 import { useAuth } from '@/hooks/useAuth'
@@ -30,6 +30,7 @@ export function GroupDetail() {
   const deleteTx = useDeleteTransaction(id!)
   const joinLinkQuery = useGroupJoinLink(id!)
   const regenerateJoinLink = useRegenerateJoinLink(id!)
+  const removeMember = useRemoveMember(id!)
   const { toast } = useToast()
 
   const [tab, setTab] = useState<Tab>('transactions')
@@ -73,6 +74,16 @@ export function GroupDetail() {
       toast('New link copied!', 'success')
     } catch {
       toast('Failed to regenerate join link', 'error')
+    }
+  }
+
+  const handleRemoveMember = async (userId: string, name: string) => {
+    if (!confirm(`Remove ${name} from this group?`)) return
+    try {
+      await removeMember.mutateAsync(userId)
+      toast(`${name} removed from group`, 'success')
+    } catch (err: any) {
+      toast(err.response?.data?.error || 'Failed to remove member', 'error')
     }
   }
 
@@ -142,6 +153,39 @@ export function GroupDetail() {
             Add Transaction
           </Button>
         </div>
+
+        {/* Members list — remove buttons visible to the owner */}
+        {isOwner && (
+          <div className="mt-4 mb-6 border rounded-lg p-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Members</p>
+            {group.members.map(m => (
+              <div key={m.user.id} className="flex items-center gap-3 py-2 border-b last:border-0">
+                <div className="h-7 w-7 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center shrink-0 overflow-hidden">
+                  {m.user.avatarUrl
+                    ? <img src={m.user.avatarUrl} alt={m.user.name} className="h-full w-full object-cover" />
+                    : m.user.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium truncate block">{m.user.name}</span>
+                  {m.role === 'OWNER' && (
+                    <span className="text-xs text-muted-foreground">Owner</span>
+                  )}
+                </div>
+                {m.role !== 'OWNER' && (
+                  <button
+                    onClick={() => handleRemoveMember(m.user.id, m.user.name)}
+                    disabled={removeMember.isPending}
+                    className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                    title={`Remove ${m.user.name}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Pending invites */}
         {group.invites?.length > 0 && (

@@ -69,8 +69,9 @@ debtsRouter.post('/remind', requireAuth, async (req, res, next) => {
       debtorUserId: z.string(),
       amount: z.number().positive(),
       currency: z.string(),
+      level: z.enum(['friendly', 'medium', 'angry']).default('medium'),
     })
-    const { debtorUserId, amount, currency } = schema.parse(req.body)
+    const { debtorUserId, amount, currency, level } = schema.parse(req.body)
 
     const [membership, group, debtor] = await Promise.all([
       prisma.groupMember.findUnique({
@@ -88,7 +89,7 @@ debtsRouter.post('/remind', requireAuth, async (req, res, next) => {
     const groupUrl = `${config.frontendUrl}/groups/${req.params.id}`
 
     if (config.resendApiKey) {
-      sendBalanceReminderEmail(debtor.email, debtor.name, req.user!.name, amountStr, group.name, groupUrl)
+      sendBalanceReminderEmail(debtor.email, debtor.name, req.user!.name, amountStr, group.name, groupUrl, level)
         .catch(err => console.error('Failed to send reminder email:', err))
     }
 

@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { ArrowRight, Bell } from 'lucide-react'
-import type { DebtsData, SimplifiedDebt } from '@/hooks/useDebts'
+import type { DebtsData, SimplifiedDebt, ReminderLevel } from '@/hooks/useDebts'
 import { useCreateTransaction } from '@/hooks/useTransactions'
 import { useSendReminder } from '@/hooks/useDebts'
 import { VenmoButton } from './VenmoButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useToast } from '@/components/ui/toast'
 
 const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', CAD: 'CA$' }
@@ -26,10 +25,10 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
   const sendReminder = useSendReminder(groupId)
   const { toast } = useToast()
 
-  const handleConfirmRemind = async () => {
+  const handleSendReminder = async (level: ReminderLevel) => {
     if (!remindingDebt) return
     try {
-      await sendReminder.mutateAsync({ debtorUserId: remindingDebt.fromId, amount: remindingDebt.amount, currency: remindingDebt.currency })
+      await sendReminder.mutateAsync({ debtorUserId: remindingDebt.fromId, amount: remindingDebt.amount, currency: remindingDebt.currency, level })
       toast(`Reminder sent to ${remindingDebt.fromName}!`, 'success')
       setRemindingDebt(null)
     } catch {
@@ -136,17 +135,62 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
         })}
       </div>
 
-      <ConfirmDialog
-        open={!!remindingDebt}
-        title="Send reminder"
-        description={remindingDebt
-          ? `Send ${remindingDebt.fromName} an email reminding them they owe you ${CURRENCY_SYMBOL[remindingDebt.currency] ?? remindingDebt.currency}${remindingDebt.amount.toFixed(2)}?`
-          : ''}
-        confirmLabel="Send reminder"
-        isPending={sendReminder.isPending}
-        onConfirm={handleConfirmRemind}
-        onCancel={() => setRemindingDebt(null)}
-      />
+      <Dialog open={!!remindingDebt} onOpenChange={open => { if (!open) setRemindingDebt(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>How badly do you want the money back?</DialogTitle>
+          </DialogHeader>
+          {remindingDebt && (
+            <p className="text-sm text-muted-foreground -mt-1">
+              Sending reminder to <strong>{remindingDebt.fromName}</strong> for{' '}
+              <strong>{(CURRENCY_SYMBOL[remindingDebt.currency] ?? remindingDebt.currency) + remindingDebt.amount.toFixed(2)}</strong>
+            </p>
+          )}
+          <div className="flex flex-col gap-3 mt-2">
+            <Button
+              variant="outline"
+              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left"
+              disabled={sendReminder.isPending}
+              onClick={() => handleSendReminder('friendly')}
+            >
+              <img src="/duck_friendly.png" alt="Friendly duck" className="h-10 w-10 object-contain shrink-0" />
+              <div>
+                <p className="font-medium text-sm">Eh, sometime soon</p>
+                <p className="text-xs text-muted-foreground">A polite nudge. The duck is happy.</p>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left"
+              disabled={sendReminder.isPending}
+              onClick={() => handleSendReminder('medium')}
+            >
+              <img src="/duck_medium.png" alt="Medium duck" className="h-10 w-10 object-contain shrink-0" />
+              <div>
+                <p className="font-medium text-sm">I'd like it back</p>
+                <p className="text-xs text-muted-foreground">Firm but fair. The duck is not amused.</p>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left border-red-200 hover:border-red-400 hover:bg-red-50"
+              disabled={sendReminder.isPending}
+              onClick={() => handleSendReminder('angry')}
+            >
+              <img src="/duck_angry.png" alt="Angry duck" className="h-10 w-10 object-contain shrink-0" />
+              <div>
+                <p className="font-medium text-sm text-red-600">I'm calling the mob to collect my money</p>
+                <p className="text-xs text-muted-foreground">Final warning. The duck has been informed.</p>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter className="mt-2">
+            <Button variant="ghost" onClick={() => setRemindingDebt(null)} disabled={sendReminder.isPending}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!confirmingDebt} onOpenChange={open => { if (!open) closeConfirm() }}>
         <DialogContent>

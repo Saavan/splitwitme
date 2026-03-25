@@ -26,9 +26,11 @@ export interface DebtsData {
   perCurrency: Record<string, CurrencyDebts>
 }
 
+export type ReminderLevel = 'friendly' | 'medium' | 'angry'
+
 export function useSendReminder(groupId: string) {
   return useMutation({
-    mutationFn: async (data: { debtorUserId: string; amount: number; currency: string }) => {
+    mutationFn: async (data: { debtorUserId: string; amount: number; currency: string; level: ReminderLevel }) => {
       const res = await apiClient.post(`/groups/${groupId}/debts/remind`, data)
       return res.data
     },

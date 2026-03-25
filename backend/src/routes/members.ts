@@ -4,6 +4,44 @@ import { prisma } from '../db'
 import { requireAuth } from '../middleware/requireAuth'
 
 export const membersRouter = Router({ mergeParams: true })
+export const usersRouter = Router()
+
+// GET /users/search?q=&excludeGroupId=
+usersRouter.get('/users/search', requireAuth, async (req, res, next) => {
+  try {
+    const q = String(req.query.q ?? '').trim()
+    const excludeGroupId = req.query.excludeGroupId ? String(req.query.excludeGroupId) : undefined
+
+    if (q.length < 2) return res.json([])
+
+    // Find users whose name or email contains the query (case-insensitive)
+    const users = await prisma.user.findMany({
+      where: {
+        AND: [
+          {
+            OR: [
+              { name: { contains: q, mode: 'insensitive' } },
+              { email: { contains: q, mode: 'insensitive' } },
+            ],
+          },
+          // Exclude the current user
+          { id: { not: req.user!.id } },
+          // Exclude users already in the target group
+          ...(excludeGroupId
+            ? [{ groupMemberships: { none: { groupId: excludeGroupId } } }]
+            : []),
+        ],
+      },
+      select: { id: true, name: true, email: true, avatarUrl: true },
+      take: 8,
+      orderBy: { name: 'asc' },
+    })
+
+    res.json(users)
+  } catch (err) {
+    next(err)
+  }
+})
 
 // POST /groups/:id/members
 membersRouter.post('/', requireAuth, async (req, res, next) => {

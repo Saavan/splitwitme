@@ -1,14 +1,15 @@
-import { useState } from 'react'
-import { Copy } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Copy, Search, UserPlus } from 'lucide-react'
 import { useAddMember } from '@/hooks/useGroups'
 import { useCreateInvite } from '@/hooks/useInvites'
+import { useUserSearch, type UserSearchResult } from '@/hooks/useUsers'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/toast'
 
-type DialogTab = 'email' | 'invite'
+type DialogTab = 'search' | 'invite'
 
 interface AddMemberDialogProps {
   groupId: string
@@ -17,11 +18,16 @@ interface AddMemberDialogProps {
 }
 
 export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialogProps) {
-  const [tab, setTab] = useState<DialogTab>('email')
+  const [tab, setTab] = useState<DialogTab>('search')
 
-  // Add by email tab
-  const [email, setEmail] = useState('')
+  // Search tab
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedQ, setDebouncedQ] = useState('')
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [addingUserId, setAddingUserId] = useState<string | null>(null)
+  const searchRef = useRef<HTMLDivElement>(null)
   const addMember = useAddMember(groupId)
+  const { data: searchResults = [], isFetching } = useUserSearch(debouncedQ, groupId)
 
   // Invite by name tab
   const [invitedName, setInvitedName] = useState('')
@@ -32,8 +38,32 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
 
   const { toast } = useToast()
 
+  // Debounce search input by 300ms
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQ(searchInput), 300)
+    return () => clearTimeout(id)
+  }, [searchInput])
+
+  // Show dropdown when query is long enough
+  useEffect(() => {
+    setShowDropdown(debouncedQ.trim().length >= 2)
+  }, [debouncedQ])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
   const handleClose = () => {
-    setEmail('')
+    setSearchInput('')
+    setDebouncedQ('')
+    setShowDropdown(false)
     setInvitedName('')
     setInviteEmail('')
     setCreatedInviteUrl(null)
@@ -41,15 +71,19 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
     onOpenChange(false)
   }
 
-  const handleAddByEmail = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSelectUser = async (user: UserSearchResult) => {
+    setShowDropdown(false)
+    setAddingUserId(user.id)
     try {
-      await addMember.mutateAsync(email)
-      toast('Member added!', 'success')
-      setEmail('')
+      await addMember.mutateAsync(user.email)
+      toast(`${user.name} added to the group!`, 'success')
+      setSearchInput('')
+      setDebouncedQ('')
       onOpenChange(false)
     } catch (err: any) {
       toast(err.response?.data?.error || 'Failed to add member', 'error')
+    } finally {
+      setAddingUserId(null)
     }
   }
 
@@ -74,6 +108,9 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
     }
   }
 
+  const initials = (name: string) =>
+    name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
@@ -84,14 +121,14 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
         {/* Tabs */}
         <div className="flex border-b mt-2">
           <button
-            onClick={() => setTab('email')}
+            onClick={() => setTab('search')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === 'email'
+              tab === 'search'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            Add by email
+            Search users
           </button>
           <button
             onClick={() => setTab('invite')}
@@ -105,31 +142,74 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
           </button>
         </div>
 
-        {tab === 'email' && (
-          <form onSubmit={handleAddByEmail} className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="friend@example.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-              />
+        {tab === 'search' && (
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2" ref={searchRef}>
+              <Label htmlFor="user-search">Search by name or email</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="user-search"
+                  type="text"
+                  placeholder="Alice, alice@example.com…"
+                  value={searchInput}
+                  onChange={e => { setSearchInput(e.target.value); setShowDropdown(true) }}
+                  onFocus={() => { if (debouncedQ.length >= 2) setShowDropdown(true) }}
+                  className="pl-9"
+                  autoComplete="off"
+                />
+
+                {/* Dropdown */}
+                {showDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 overflow-hidden">
+                    {isFetching && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">Searching…</div>
+                    )}
+                    {!isFetching && searchResults.length === 0 && (
+                      <div className="px-3 py-3 text-sm text-muted-foreground">
+                        No users found.{' '}
+                        <button
+                          className="text-primary underline underline-offset-2"
+                          onClick={() => { setTab('invite'); setShowDropdown(false) }}
+                        >
+                          Invite them by name instead.
+                        </button>
+                      </div>
+                    )}
+                    {!isFetching && searchResults.map(user => (
+                      <button
+                        key={user.id}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted text-left transition-colors disabled:opacity-50"
+                        onClick={() => handleSelectUser(user)}
+                        disabled={addingUserId === user.id}
+                      >
+                        {/* Avatar */}
+                        <div className="h-8 w-8 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center shrink-0 overflow-hidden">
+                          {user.avatarUrl
+                            ? <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+                            : initials(user.name)
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{user.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                        </div>
+                        <UserPlus className="h-4 w-4 text-muted-foreground shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
-                They must have signed in to SplitWitMe at least once.
+                Only shows people who have already signed in to SplitWitMe.
               </p>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={addMember.isPending}>
-                {addMember.isPending ? 'Adding...' : 'Add Member'}
-              </Button>
             </DialogFooter>
-          </form>
+          </div>
         )}
 
         {tab === 'invite' && (
@@ -165,7 +245,7 @@ export function AddMemberDialog({ groupId, open, onOpenChange }: AddMemberDialog
                     Cancel
                   </Button>
                   <Button type="submit" disabled={createInvite.isPending}>
-                    {createInvite.isPending ? 'Creating...' : 'Create Invite'}
+                    {createInvite.isPending ? 'Creating…' : 'Create Invite'}
                   </Button>
                 </DialogFooter>
               </form>

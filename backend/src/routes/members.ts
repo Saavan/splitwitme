@@ -2,6 +2,8 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../db'
 import { requireAuth } from '../middleware/requireAuth'
+import { config } from '../config'
+import { sendAddedToGroupEmail } from '../lib/email'
 
 export const membersRouter = Router({ mergeParams: true })
 export const usersRouter = Router()
@@ -62,10 +64,14 @@ membersRouter.post('/', requireAuth, async (req, res, next) => {
     const schema = z.object({ email: z.string().email() })
     const { email } = schema.parse(req.body)
 
-    const targetUser = await prisma.user.findUnique({ where: { email } })
+    const [targetUser, group] = await Promise.all([
+      prisma.user.findUnique({ where: { email } }),
+      prisma.group.findUnique({ where: { id: req.params.id }, select: { name: true } }),
+    ])
     if (!targetUser) {
       return res.status(404).json({ error: "No account found — ask them to sign in to SplitWitMe first." })
     }
+    if (!group) return res.status(404).json({ error: 'Group not found' })
 
     const existing = await prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId: req.params.id, userId: targetUser.id } }
@@ -78,6 +84,13 @@ membersRouter.post('/', requireAuth, async (req, res, next) => {
     })
 
     res.status(201).json(newMember)
+
+    // Send notification email in the background — never blocks the response
+    if (config.resendApiKey) {
+      const groupUrl = `${config.frontendUrl}/groups/${req.params.id}`
+      sendAddedToGroupEmail(targetUser.email, targetUser.name, req.user!.name, group.name, groupUrl)
+        .catch(err => console.error('Failed to send group-added email:', err))
+    }
   } catch (err) {
     next(err)
   }

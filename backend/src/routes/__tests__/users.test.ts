@@ -5,6 +5,14 @@ import { usersRouter } from '../members'
 import { prisma } from '../../db'
 import { requireAuth } from '../../middleware/requireAuth'
 
+vi.mock('../../config', () => ({
+  config: { frontendUrl: 'http://localhost:5173', resendApiKey: '' },
+}))
+
+vi.mock('../../lib/email', () => ({
+  sendAddedToGroupEmail: vi.fn().mockResolvedValue(undefined),
+}))
+
 vi.mock('../../db', () => ({
   prisma: {
     user: {

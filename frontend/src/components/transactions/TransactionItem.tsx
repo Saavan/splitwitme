@@ -28,8 +28,8 @@ export function TransactionItem({ transaction, currentUserId, onEdit, onDelete }
       </Avatar>
       <div className="flex-1 min-w-0">
         <p className="font-medium truncate">{transaction.description}</p>
-        <p className="text-sm text-muted-foreground">
-          {transaction.paidBy.name} paid {sym}{Number(transaction.amount).toFixed(2)} · {new Date(transaction.date).toLocaleDateString()}
+        <p className="text-sm text-muted-foreground truncate">
+          {transaction.paidBy.name} paid {sym}{Number(transaction.amount).toFixed(2)}<span className="hidden sm:inline"> · {new Date(transaction.date).toLocaleDateString()}</span>
         </p>
       </div>
       <div className="text-right shrink-0">
@@ -39,11 +39,11 @@ export function TransactionItem({ transaction, currentUserId, onEdit, onDelete }
         <p className="text-xs text-muted-foreground">{iPaid ? 'you paid' : 'you owe'}</p>
       </div>
       <div className="flex gap-1 shrink-0">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(transaction)}>
-          <Pencil className="h-3.5 w-3.5" />
+        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => onEdit(transaction)}>
+          <Pencil className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDelete(transaction.id)}>
-          <Trash2 className="h-3.5 w-3.5" />
+        <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:text-destructive" onClick={() => onDelete(transaction.id)}>
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     </div>

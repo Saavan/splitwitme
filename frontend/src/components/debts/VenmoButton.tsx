@@ -24,7 +24,7 @@ export function VenmoButton({ venmoLink, amount, recipientName }: VenmoButtonPro
   return (
     <a href={venmoLink} target="_blank" rel="noopener noreferrer">
       <Button size="sm" variant="outline" className="border-blue-500 text-blue-600 hover:bg-blue-50">
-        Pay ${amount.toFixed(2)} on Venmo
+        <span className="hidden sm:inline">Pay ${amount.toFixed(2)} on </span>Venmo
       </Button>
     </a>
   )

@@ -95,13 +95,13 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
               </p>
               <div className="space-y-3">
                 {data.simplifiedDebts.map((debt, i) => (
-                  <div key={i} className="flex items-center justify-between gap-3 p-3 rounded-lg border">
+                  <div key={i} className="flex flex-wrap items-center gap-2 p-3 rounded-lg border">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <span className="font-medium text-sm truncate">{debt.fromName}</span>
                       <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
                       <span className="font-medium text-sm truncate">{debt.toName}</span>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 ml-auto">
                       <span className="font-semibold">{sym(currency)}{debt.amount.toFixed(2)}</span>
                       {debt.toId === currentUserId && (
                         <Button

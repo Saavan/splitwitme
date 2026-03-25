@@ -64,7 +64,7 @@ export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEdi
           return (
             <div key={member.id} className="flex items-center gap-3">
               <span className="flex-1 text-sm">{member.name}</span>
-              <div className="relative w-28">
+              <div className="relative w-24 shrink-0">
                 <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">$</span>
                 <Input
                   type="number"

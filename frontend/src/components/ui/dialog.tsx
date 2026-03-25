@@ -11,12 +11,12 @@ interface DialogProps {
 const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div
         className="fixed inset-0 bg-black/50"
         onClick={() => onOpenChange?.(false)}
       />
-      <div className="relative z-50">{children}</div>
+      <div className="relative z-50 w-full sm:w-auto">{children}</div>
     </div>
   )
 }
@@ -30,7 +30,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
     <div
       ref={ref}
       className={cn(
-        'bg-background rounded-lg shadow-lg p-6 w-full max-w-md mx-4',
+        'bg-background rounded-t-xl sm:rounded-lg shadow-lg p-6 w-full sm:max-w-md sm:mx-4',
         className
       )}
       {...props}

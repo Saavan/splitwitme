@@ -141,22 +141,22 @@ export function GroupDetail() {
             <h1 className="text-xl font-bold">{group.name}</h1>
             <p className="text-sm text-muted-foreground">{group.members.length} members</p>
           </div>
-          <Button variant="outline" size="sm" onClick={handleShareJoinLink}>
-            <Link className="h-4 w-4 mr-1" />
-            Share
+          <Button variant="outline" size="sm" onClick={handleShareJoinLink} title="Share join link">
+            <Link className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Share</span>
           </Button>
           {isOwner && (
-            <Button variant="outline" size="sm" onClick={handleRegenerateJoinLink} disabled={regenerateJoinLink.isPending}>
+            <Button variant="outline" size="sm" onClick={handleRegenerateJoinLink} disabled={regenerateJoinLink.isPending} title="Regenerate join link">
               <RefreshCw className="h-4 w-4" />
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => setShowAddMember(true)}>
-            <UserPlus className="h-4 w-4 mr-1" />
-            Add
+          <Button variant="outline" size="sm" onClick={() => setShowAddMember(true)} title="Add member">
+            <UserPlus className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Add</span>
           </Button>
-          <Button size="sm" onClick={() => setShowNewTx(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Transaction
+          <Button size="sm" onClick={() => setShowNewTx(true)} title="Add transaction">
+            <Plus className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Add</span>
           </Button>
         </div>
 

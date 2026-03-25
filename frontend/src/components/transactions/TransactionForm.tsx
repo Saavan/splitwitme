@@ -55,7 +55,7 @@ export function TransactionForm({ members, currentUserId, initialData, onSubmit,
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="currency">Currency</Label>
           <Select id="currency" value={currency} onValueChange={setCurrency}>

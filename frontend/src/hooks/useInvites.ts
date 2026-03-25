@@ -57,6 +57,16 @@ export function useClaimInvite(token: string) {
   })
 }
 
+export function useDeleteInvite(groupId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (inviteId: string) => {
+      await apiClient.delete(`/groups/${groupId}/invites/${inviteId}`)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['groups', groupId] }),
+  })
+}
+
 export function useJoinViaCode(joinCode: string) {
   const qc = useQueryClient()
   return useMutation({

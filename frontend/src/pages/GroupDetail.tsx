@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Plus, UserPlus, ArrowLeft, Link, RefreshCw, X } from 'lucide-react'
 import { useGroup, useGroupJoinLink, useRegenerateJoinLink, useRemoveMember } from '@/hooks/useGroups'
+import { useDeleteInvite } from '@/hooks/useInvites'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useTransactions, useDeleteTransaction, useUpdateTransaction, useCreateTransaction } from '@/hooks/useTransactions'
 import { useDebts } from '@/hooks/useDebts'
@@ -32,6 +33,7 @@ export function GroupDetail() {
   const joinLinkQuery = useGroupJoinLink(id!)
   const regenerateJoinLink = useRegenerateJoinLink(id!)
   const removeMember = useRemoveMember(id!)
+  const deleteInvite = useDeleteInvite(id!)
   const { toast } = useToast()
 
   const [tab, setTab] = useState<Tab>('transactions')
@@ -295,7 +297,17 @@ export function GroupDetail() {
                 {group.invites.map(invite => (
                   <div key={invite.id} className="flex items-center justify-between px-4 py-3">
                     <span className="text-sm">{invite.invitedName}</span>
-                    <Badge variant="secondary">Pending</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">Pending</Badge>
+                      <button
+                        onClick={() => deleteInvite.mutate(invite.id)}
+                        disabled={deleteInvite.isPending}
+                        className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                        title="Cancel invite"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -53,6 +53,26 @@ invitesRouter.post('/', requireAuth, async (req, res, next) => {
   }
 })
 
+// DELETE /groups/:id/invites/:inviteId
+invitesRouter.delete('/:inviteId', requireAuth, async (req, res, next) => {
+  try {
+    const membership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: req.params.id, userId: req.user!.id } },
+    })
+    if (!membership) return res.status(403).json({ error: 'Not a member of this group' })
+
+    const invite = await prisma.groupInvite.findUnique({ where: { id: req.params.inviteId } })
+    if (!invite || invite.groupId !== req.params.id) {
+      return res.status(404).json({ error: 'Invite not found' })
+    }
+
+    await prisma.groupInvite.delete({ where: { id: req.params.inviteId } })
+    res.status(204).send()
+  } catch (err) {
+    next(err)
+  }
+})
+
 export const publicInvitesRouter = Router()
 
 // GET /invites/:token

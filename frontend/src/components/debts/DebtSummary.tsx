@@ -7,6 +7,7 @@ import { VenmoButton } from './VenmoButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useToast } from '@/components/ui/toast'
 
 const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', CAD: 'CA$' }
@@ -20,16 +21,20 @@ interface DebtSummaryProps {
 export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps) {
   const [confirmingDebt, setConfirmingDebt] = useState<SimplifiedDebt | null>(null)
   const [cashAmount, setCashAmount] = useState('')
+  const [remindingDebt, setRemindingDebt] = useState<SimplifiedDebt | null>(null)
   const createTx = useCreateTransaction(groupId)
   const sendReminder = useSendReminder(groupId)
   const { toast } = useToast()
 
-  const handleRemind = async (debt: SimplifiedDebt) => {
+  const handleConfirmRemind = async () => {
+    if (!remindingDebt) return
     try {
-      await sendReminder.mutateAsync({ debtorUserId: debt.fromId, amount: debt.amount, currency: debt.currency })
-      toast(`Reminder sent to ${debt.fromName}!`, 'success')
+      await sendReminder.mutateAsync({ debtorUserId: remindingDebt.fromId, amount: remindingDebt.amount, currency: remindingDebt.currency })
+      toast(`Reminder sent to ${remindingDebt.fromName}!`, 'success')
+      setRemindingDebt(null)
     } catch {
       toast('Failed to send reminder', 'error')
+      setRemindingDebt(null)
     }
   }
 
@@ -103,8 +108,7 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleRemind(debt)}
-                          disabled={sendReminder.isPending}
+                          onClick={() => setRemindingDebt(debt)}
                           title={`Send reminder to ${debt.fromName}`}
                         >
                           <Bell className="h-3.5 w-3.5 mr-1" />
@@ -131,6 +135,18 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
           )
         })}
       </div>
+
+      <ConfirmDialog
+        open={!!remindingDebt}
+        title="Send reminder"
+        description={remindingDebt
+          ? `Send ${remindingDebt.fromName} an email reminding them they owe you ${CURRENCY_SYMBOL[remindingDebt.currency] ?? remindingDebt.currency}${remindingDebt.amount.toFixed(2)}?`
+          : ''}
+        confirmLabel="Send reminder"
+        isPending={sendReminder.isPending}
+        onConfirm={handleConfirmRemind}
+        onCancel={() => setRemindingDebt(null)}
+      />
 
       <Dialog open={!!confirmingDebt} onOpenChange={open => { if (!open) closeConfirm() }}>
         <DialogContent>

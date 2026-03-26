@@ -28,12 +28,21 @@ authRouter.get('/auth/google', (req, res, next) => {
 
 authRouter.get(
   '/auth/google/callback',
+  // Passport 0.6+ calls req.session.regenerate() after login to prevent session fixation.
+  // This wipes any data stored before the OAuth redirect (inviteToken, joinCode).
+  // Copy them off the session onto req before passport runs so they survive regeneration.
+  (req, res, next) => {
+    ;(req as any)._pendingInviteToken = req.session.inviteToken
+    ;(req as any)._pendingJoinCode = req.session.joinCode
+    next()
+  },
   passport.authenticate('google', { failureRedirect: `${config.frontendUrl}/login?error=auth_failed` }),
   async (req, res) => {
+    const inviteToken: string | undefined = (req as any)._pendingInviteToken
+    const joinCode: string | undefined = (req as any)._pendingJoinCode
+
     // Handle invite token claim
-    const inviteToken = req.session.inviteToken
     if (inviteToken) {
-      delete req.session.inviteToken
       try {
         const invite = await prisma.groupInvite.findUnique({ where: { token: inviteToken } })
         if (invite && !invite.claimedAt && !(invite.expiresAt && invite.expiresAt < new Date())) {
@@ -57,9 +66,7 @@ authRouter.get(
     }
 
     // Handle join code
-    const joinCode = req.session.joinCode
     if (joinCode) {
-      delete req.session.joinCode
       try {
         const group = await prisma.group.findUnique({ where: { joinCode } })
         if (group) {

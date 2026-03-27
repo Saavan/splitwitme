@@ -66,7 +66,13 @@ export function MontrealBackground() {
           88%  { transform: translateY(var(--dh))  scaleX(1.5) scaleY(0.8); opacity: 0.55; }
           100% { transform: translateY(var(--dh))  scaleX(1.5) scaleY(0.8); opacity: 0;    }
         }
+
+        @media (max-width: 640px) {
+          .mtl-bg { opacity: 0.35; }
+        }
       `}</style>
+
+      <div className="mtl-bg">
 
       {/* Amber tint overlay */}
       <div
@@ -160,6 +166,8 @@ export function MontrealBackground() {
           ⚜️
         </div>
       ))}
+
+      </div>
     </>
   )
 }

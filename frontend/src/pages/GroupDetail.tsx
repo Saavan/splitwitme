@@ -150,10 +150,12 @@ export function GroupDetail() {
               <RefreshCw className="h-4 w-4" />
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => setShowAddMember(true)} title="Add member">
-            <UserPlus className="h-4 w-4 sm:mr-1" />
-            <span className="hidden sm:inline">Add</span>
-          </Button>
+          {isOwner && (
+            <Button variant="outline" size="sm" onClick={() => setShowAddMember(true)} title="Add member">
+              <UserPlus className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Add</span>
+            </Button>
+          )}
           <Button size="sm" onClick={() => setShowNewTx(true)} title="Add transaction">
             <Plus className="h-4 w-4 sm:mr-1" />
             <span className="hidden sm:inline">Add</span>

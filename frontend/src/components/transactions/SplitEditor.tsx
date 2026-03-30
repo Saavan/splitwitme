@@ -32,6 +32,7 @@ export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEdi
       const next = new Set(prev)
       if (next.has(userId)) {
         next.delete(userId)
+        onChange(splits.map(s => s.userId === userId ? { ...s, amount: 0 } : s))
       } else {
         next.add(userId)
       }

@@ -76,11 +76,24 @@ export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEdi
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium">Split between members</p>
-        <Button type="button" variant="outline" size="sm" onClick={handleEqualSplit}>
-          Split equally
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => {
+            setIncluded(new Set(members.map(m => m.id)))
+          }}>
+            Splitwit Everyone
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => {
+            setIncluded(new Set())
+            onChange(splits.map(s => ({ ...s, amount: 0 })))
+          }}>
+            Splitwit No one
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={handleEqualSplit}>
+            Split equally
+          </Button>
+        </div>
       </div>
       <div className="space-y-2">
         {members.map(member => {

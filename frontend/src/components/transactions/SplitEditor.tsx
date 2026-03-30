@@ -22,7 +22,12 @@ interface SplitEditorProps {
 }
 
 export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEditorProps) {
-  const [included, setIncluded] = useState<Set<string>>(() => new Set(members.map(m => m.id)))
+  const [included, setIncluded] = useState<Set<string>>(() => {
+    const active = splits.filter(s => s.amount > 0).map(s => s.userId)
+    // Edit mode: only include members who have a non-zero split
+    // New transaction: no amounts yet, so include everyone by default
+    return active.length > 0 ? new Set(active) : new Set(members.map(m => m.id))
+  })
 
   const splitsTotal = sumSplits(splits.map(s => s.amount || 0))
   const isValid = splitsMatchTotal(splits.map(s => s.amount || 0), totalAmount)

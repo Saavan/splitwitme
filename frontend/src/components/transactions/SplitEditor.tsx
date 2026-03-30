@@ -103,15 +103,21 @@ export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEdi
               </label>
               <div className="relative w-24 shrink-0">
                 <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">$</span>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={split?.amount || ''}
-                  onChange={e => handleAmountChange(member.id, e.target.value)}
-                  className="pl-6"
-                  placeholder="0.00"
-                />
+                {isIncluded ? (
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={split?.amount || ''}
+                    onChange={e => handleAmountChange(member.id, e.target.value)}
+                    className="pl-6"
+                    placeholder="0.00"
+                  />
+                ) : (
+                  <div className="h-10 pl-6 pr-3 flex items-center rounded-md border bg-muted text-muted-foreground text-sm select-none">
+                    0.00
+                  </div>
+                )}
               </div>
             </div>
           )

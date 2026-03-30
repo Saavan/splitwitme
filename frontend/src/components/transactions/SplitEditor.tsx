@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -22,13 +22,30 @@ interface SplitEditorProps {
 }
 
 export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEditorProps) {
+  const [included, setIncluded] = useState<Set<string>>(() => new Set(members.map(m => m.id)))
+
   const splitsTotal = sumSplits(splits.map(s => s.amount || 0))
   const isValid = splitsMatchTotal(splits.map(s => s.amount || 0), totalAmount)
 
+  const handleToggle = (userId: string) => {
+    setIncluded(prev => {
+      const next = new Set(prev)
+      if (next.has(userId)) {
+        next.delete(userId)
+      } else {
+        next.add(userId)
+      }
+      return next
+    })
+  }
+
   const handleEqualSplit = () => {
-    if (members.length === 0 || totalAmount <= 0) return
-    const amounts = splitEqually(totalAmount, members.length)
-    onChange(members.map((m, i) => ({ userId: m.id, amount: amounts[i] })))
+    if (totalAmount <= 0) return
+    const active = members.filter(m => included.has(m.id))
+    if (active.length === 0) return
+    const amounts = splitEqually(totalAmount, active.length)
+    const activeMap = new Map(active.map((m, i) => [m.id, amounts[i]]))
+    onChange(members.map(m => ({ userId: m.id, amount: activeMap.get(m.id) ?? 0 })))
   }
 
   const handleAmountChange = (userId: string, value: string) => {
@@ -46,6 +63,16 @@ export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEdi
     }
   }, [members])
 
+  // Keep included in sync if members list changes
+  useEffect(() => {
+    setIncluded(prev => {
+      const memberIds = new Set(members.map(m => m.id))
+      const next = new Set([...prev].filter(id => memberIds.has(id)))
+      members.forEach(m => { if (!prev.has(m.id)) next.add(m.id) })
+      return next.size === prev.size ? prev : next
+    })
+  }, [members])
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -57,9 +84,22 @@ export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEdi
       <div className="space-y-2">
         {members.map(member => {
           const split = splits.find(s => s.userId === member.id)
+          const isIncluded = included.has(member.id)
           return (
             <div key={member.id} className="flex items-center gap-3">
-              <span className="flex-1 text-sm">{member.name}</span>
+              <input
+                type="checkbox"
+                id={`include-${member.id}`}
+                checked={isIncluded}
+                onChange={() => handleToggle(member.id)}
+                className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer shrink-0"
+              />
+              <label
+                htmlFor={`include-${member.id}`}
+                className={cn('flex-1 text-sm cursor-pointer select-none', !isIncluded && 'text-muted-foreground line-through')}
+              >
+                {member.name}
+              </label>
               <div className="relative w-24 shrink-0">
                 <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">$</span>
                 <Input

@@ -33,7 +33,7 @@ transactionsRouter.get('/', requireAuth, async (req, res, next) => {
 
 const splitSchema = z.object({
   userId: z.string(),
-  amount: z.number().positive(),
+  amount: z.number().min(0), // 0 means excluded (unchecked); filtered out before storage
 })
 
 const txBodySchema = z.object({
@@ -70,8 +70,10 @@ async function validateSplits(
   amount: number,
   splits: { userId: string; amount: number }[]
 ): Promise<string | null> {
+  // Ignore zero-amount splits (unchecked members)
+  const activeSplits = splits.filter(s => s.amount > 0)
   // Compare in integer cents — strict equality, no floating-point tolerance needed
-  const totalCents = splits.reduce((sum, s) => sum + toCents(s.amount), 0)
+  const totalCents = activeSplits.reduce((sum, s) => sum + toCents(s.amount), 0)
   const amountCents = toCents(amount)
   if (totalCents !== amountCents) {
     return `Splits sum (${toDollars(totalCents).toFixed(2)}) must equal transaction amount (${amount.toFixed(2)})`
@@ -113,7 +115,9 @@ transactionsRouter.post('/', requireAuth, async (req, res, next) => {
           currency: body.currency,
           date: body.date ? new Date(body.date) : new Date(),
           splits: {
-            create: body.splits.map(s => ({ userId: s.userId, amount: toCents(s.amount) }))
+            create: body.splits
+              .filter(s => s.amount > 0)
+              .map(s => ({ userId: s.userId, amount: toCents(s.amount) }))
           }
         },
         include: {
@@ -156,7 +160,9 @@ transactionsRouter.patch('/:txId', requireAuth, async (req, res, next) => {
           amount: toCents(body.amount),
           date: body.date ? new Date(body.date) : existing.date,
           splits: {
-            create: body.splits.map(s => ({ userId: s.userId, amount: toCents(s.amount) }))
+            create: body.splits
+              .filter(s => s.amount > 0)
+              .map(s => ({ userId: s.userId, amount: toCents(s.amount) }))
           }
         },
         include: {

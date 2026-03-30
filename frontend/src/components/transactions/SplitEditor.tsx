@@ -26,13 +26,14 @@ export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEdi
 
   const handleEqualSplit = () => {
     if (members.length === 0 || totalAmount <= 0) return
-    const base = Math.floor((totalAmount / members.length) * 100) / 100
-    const remainder = Math.round((totalAmount - base * members.length) * 100)
+    const totalCents = Math.round(totalAmount * 100)
+    const baseCents = Math.floor(totalCents / members.length)
+    const remainder = totalCents - baseCents * members.length
     const indices = [...members.keys()].sort(() => Math.random() - 0.5)
     const bumped = new Set(indices.slice(0, remainder))
     const newSplits = members.map((m, i) => ({
       userId: m.id,
-      amount: bumped.has(i) ? base + 0.01 : base,
+      amount: (bumped.has(i) ? baseCents + 1 : baseCents) / 100,
     }))
     onChange(newSplits)
   }

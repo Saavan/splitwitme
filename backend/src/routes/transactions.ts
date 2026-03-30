@@ -25,7 +25,7 @@ transactionsRouter.get('/', requireAuth, async (req, res, next) => {
       orderBy: { date: 'desc' }
     })
 
-    res.json(transactions)
+    res.json(transactions.map(toApiTx))
   } catch (err) {
     next(err)
   }
@@ -45,15 +45,36 @@ const txBodySchema = z.object({
   splits: z.array(splitSchema).min(1),
 })
 
+// Convert a dollar amount (from the API) to integer cents, rounding to avoid float errors
+function toCents(dollars: number): number {
+  return Math.round(dollars * 100)
+}
+
+// Convert integer cents back to dollars for API responses
+function toDollars(cents: number): number {
+  return cents / 100
+}
+
+// Map a Prisma transaction (amounts in cents) to the API response shape (amounts in dollars)
+function toApiTx(tx: any) {
+  return {
+    ...tx,
+    amount: toDollars(tx.amount),
+    splits: tx.splits.map((s: any) => ({ ...s, amount: toDollars(s.amount) })),
+  }
+}
+
 async function validateSplits(
   groupId: string,
   paidById: string,
   amount: number,
   splits: { userId: string; amount: number }[]
 ): Promise<string | null> {
-  const total = splits.reduce((sum, s) => sum + s.amount, 0)
-  if (Math.abs(total - amount) > 0.01) {
-    return `Splits sum (${total.toFixed(2)}) must equal transaction amount (${amount.toFixed(2)})`
+  // Compare in integer cents — strict equality, no floating-point tolerance needed
+  const totalCents = splits.reduce((sum, s) => sum + toCents(s.amount), 0)
+  const amountCents = toCents(amount)
+  if (totalCents !== amountCents) {
+    return `Splits sum (${toDollars(totalCents).toFixed(2)}) must equal transaction amount (${amount.toFixed(2)})`
   }
 
   const members = await prisma.groupMember.findMany({ where: { groupId } })
@@ -88,11 +109,11 @@ transactionsRouter.post('/', requireAuth, async (req, res, next) => {
           groupId: req.params.id,
           paidById: body.paidById,
           description: body.description,
-          amount: body.amount,
+          amount: toCents(body.amount),
           currency: body.currency,
           date: body.date ? new Date(body.date) : new Date(),
           splits: {
-            create: body.splits.map(s => ({ userId: s.userId, amount: s.amount }))
+            create: body.splits.map(s => ({ userId: s.userId, amount: toCents(s.amount) }))
           }
         },
         include: {
@@ -102,7 +123,7 @@ transactionsRouter.post('/', requireAuth, async (req, res, next) => {
       })
     })
 
-    res.status(201).json(transaction)
+    res.status(201).json(toApiTx(transaction))
   } catch (err) {
     next(err)
   }
@@ -132,10 +153,10 @@ transactionsRouter.patch('/:txId', requireAuth, async (req, res, next) => {
         data: {
           paidById: body.paidById,
           description: body.description,
-          amount: body.amount,
+          amount: toCents(body.amount),
           date: body.date ? new Date(body.date) : existing.date,
           splits: {
-            create: body.splits.map(s => ({ userId: s.userId, amount: s.amount }))
+            create: body.splits.map(s => ({ userId: s.userId, amount: toCents(s.amount) }))
           }
         },
         include: {
@@ -145,7 +166,7 @@ transactionsRouter.patch('/:txId', requireAuth, async (req, res, next) => {
       })
     })
 
-    res.json(transaction)
+    res.json(toApiTx(transaction))
   } catch (err) {
     next(err)
   }

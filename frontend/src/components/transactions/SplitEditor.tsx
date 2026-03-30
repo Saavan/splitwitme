@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { splitEqually, sumSplits, splitsMatchTotal } from '@/lib/money'
 
 interface Member {
   id: string
@@ -21,21 +22,13 @@ interface SplitEditorProps {
 }
 
 export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEditorProps) {
-  const splitsTotal = splits.reduce((sum, s) => sum + (s.amount || 0), 0)
-  const isValid = Math.abs(splitsTotal - totalAmount) < 0.01
+  const splitsTotal = sumSplits(splits.map(s => s.amount || 0))
+  const isValid = splitsMatchTotal(splits.map(s => s.amount || 0), totalAmount)
 
   const handleEqualSplit = () => {
     if (members.length === 0 || totalAmount <= 0) return
-    const totalCents = Math.round(totalAmount * 100)
-    const baseCents = Math.floor(totalCents / members.length)
-    const remainder = totalCents - baseCents * members.length
-    const indices = [...members.keys()].sort(() => Math.random() - 0.5)
-    const bumped = new Set(indices.slice(0, remainder))
-    const newSplits = members.map((m, i) => ({
-      userId: m.id,
-      amount: (bumped.has(i) ? baseCents + 1 : baseCents) / 100,
-    }))
-    onChange(newSplits)
+    const amounts = splitEqually(totalAmount, members.length)
+    onChange(members.map((m, i) => ({ userId: m.id, amount: amounts[i] })))
   }
 
   const handleAmountChange = (userId: string, value: string) => {

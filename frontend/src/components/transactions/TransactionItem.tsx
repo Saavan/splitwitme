@@ -13,8 +13,9 @@ interface TransactionItemProps {
 export function TransactionItem({ transaction, currentUserId, onEdit, onDelete }: TransactionItemProps) {
   const mySplit = transaction.splits.find(s => s.userId === currentUserId)
   const iPaid = transaction.paidById === currentUserId
-  const myAmount = mySplit ? Number(mySplit.amount) : 0
-  const netEffect = iPaid ? Number(transaction.amount) - myAmount : -myAmount
+  const myAmountCents = mySplit ? Math.round(Number(mySplit.amount) * 100) : 0
+  const txAmountCents = Math.round(Number(transaction.amount) * 100)
+  const netEffect = (iPaid ? txAmountCents - myAmountCents : -myAmountCents) / 100
   const sym = transaction.currency === 'CAD' ? 'CA$' : '$'
 
   return (

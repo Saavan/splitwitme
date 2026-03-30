@@ -25,23 +25,26 @@ groupsRouter.get('/groups', requireAuth, async (req, res, next) => {
     })
 
     const groups = memberships.map(({ group }: { group: typeof memberships[number]['group'] }) => {
-      const netBalances: Record<string, number> = {}
+      // Accumulate in integer cents to avoid floating-point errors
+      const netBalancesCents: Record<string, number> = {}
       for (const tx of group.transactions) {
         const cur = (tx as any).currency || 'USD'
-        netBalances[cur] = netBalances[cur] || 0
+        if (!netBalancesCents[cur]) netBalancesCents[cur] = 0
         if (tx.paidById === req.user!.id) {
           for (const split of tx.splits) {
             if (split.userId !== req.user!.id) {
-              netBalances[cur] += Number(split.amount)
+              netBalancesCents[cur] += split.amount // already integer cents
             }
           }
         } else {
           const mySplit = tx.splits.find((s: { userId: string; amount: unknown }) => s.userId === req.user!.id)
-          if (mySplit) netBalances[cur] -= Number(mySplit.amount)
+          if (mySplit) netBalancesCents[cur] -= mySplit.amount // already integer cents
         }
       }
-      for (const cur of Object.keys(netBalances)) {
-        netBalances[cur] = Math.round(netBalances[cur] * 100) / 100
+      // Convert to dollars for the API response
+      const netBalances: Record<string, number> = {}
+      for (const cur of Object.keys(netBalancesCents)) {
+        netBalances[cur] = netBalancesCents[cur] / 100
       }
 
       return {

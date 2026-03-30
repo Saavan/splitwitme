@@ -10,20 +10,20 @@ export interface MemberInfo {
 
 export interface TransactionInfo {
   paidById: string
-  amount: number
+  amount: number    // integer cents
   currency: string
-  splits: Array<{ userId: string; amount: number }>
+  splits: Array<{ userId: string; amount: number }> // amounts in integer cents
 }
 
 export interface RawBalance {
   userId: string
   name: string
-  balance: number
+  balance: number  // integer cents
 }
 
 export interface CurrencyDebtsResult {
   rawBalances: RawBalance[]
-  simplifiedDebts: Settlement[]
+  simplifiedDebts: Settlement[] // amounts in integer cents
 }
 
 export function computeDebtsPerCurrency(
@@ -36,6 +36,7 @@ export function computeDebtsPerCurrency(
   for (const currency of currencies) {
     const txs = transactions.filter(t => t.currency === currency)
 
+    // Balances tracked in integer cents throughout — no floating-point accumulation
     const balanceMap = new Map<string, { name: string; balance: number }>()
     for (const { userId, name } of members) {
       balanceMap.set(userId, { name, balance: 0 })
@@ -54,7 +55,7 @@ export function computeDebtsPerCurrency(
     const rawBalances: RawBalance[] = Array.from(balanceMap.entries()).map(([userId, { name, balance }]) => ({
       userId,
       name,
-      balance: Math.round(balance * 100) / 100,
+      balance, // integer cents
     }))
 
     const balancesForSimplifier: Balance[] = rawBalances.map(b => ({

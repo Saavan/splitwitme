@@ -1,7 +1,7 @@
 export interface Balance {
   userId: string
   name: string
-  balance: number // positive = owed money, negative = owes money
+  balance: number // integer cents, positive = owed money, negative = owes money
 }
 
 export interface Settlement {
@@ -9,12 +9,13 @@ export interface Settlement {
   fromName: string
   toId: string
   toName: string
-  amount: number
+  amount: number // integer cents
 }
 
 export function simplifyDebts(balances: Balance[]): Settlement[] {
-  const creditors = balances.filter(b => b.balance > 0.001).map(b => ({ ...b }))
-  const debtors = balances.filter(b => b.balance < -0.001).map(b => ({ ...b }))
+  // All arithmetic is integer cents — no floating-point risk
+  const creditors = balances.filter(b => b.balance > 0).map(b => ({ ...b }))
+  const debtors = balances.filter(b => b.balance < 0).map(b => ({ ...b }))
 
   creditors.sort((a, b) => b.balance - a.balance)
   debtors.sort((a, b) => a.balance - b.balance) // most negative first
@@ -26,23 +27,23 @@ export function simplifyDebts(balances: Balance[]): Settlement[] {
   while (ci < creditors.length && di < debtors.length) {
     const creditor = creditors[ci]
     const debtor = debtors[di]
-    const amount = Math.min(creditor.balance, Math.abs(debtor.balance))
+    const amount = Math.min(creditor.balance, Math.abs(debtor.balance)) // integer cents
 
-    if (amount > 0.001) {
+    if (amount > 0) {
       settlements.push({
         fromId: debtor.userId,
         fromName: debtor.name,
         toId: creditor.userId,
         toName: creditor.name,
-        amount: Math.round(amount * 100) / 100,
+        amount, // integer cents
       })
     }
 
     creditor.balance -= amount
     debtor.balance += amount
 
-    if (creditor.balance < 0.001) ci++
-    if (debtor.balance > -0.001) di++
+    if (creditor.balance <= 0) ci++
+    if (debtor.balance >= 0) di++
   }
 
   return settlements

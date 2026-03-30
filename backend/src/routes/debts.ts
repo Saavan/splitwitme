@@ -30,28 +30,32 @@ debtsRouter.get('/', requireAuth, async (req, res, next) => {
     const venmoMap = new Map(group.members.map((m: { user: { id: string; venmoHandle: string | null } }) => [m.user.id, m.user.venmoHandle]))
 
     const rawDebts = computeDebtsPerCurrency(
-      group.transactions.map((tx: { paidById: string; amount: unknown; currency: string; splits: Array<{ userId: string; amount: unknown }> }) => ({
+      group.transactions.map((tx: { paidById: string; amount: number; currency: string; splits: Array<{ userId: string; amount: number }> }) => ({
         paidById: tx.paidById,
-        amount: Number(tx.amount),
+        amount: tx.amount, // integer cents from DB
         currency: tx.currency,
-        splits: tx.splits.map((s) => ({ userId: s.userId, amount: Number(s.amount) })),
+        splits: tx.splits.map((s) => ({ userId: s.userId, amount: s.amount })), // integer cents
       })),
       group.members.map((m: { user: { id: string; name: string } }) => ({ userId: m.user.id, name: m.user.name }))
     )
 
-    // Attach venmoLinks (USD only — Venmo is US-only)
+    // Convert cents to dollars at the API boundary
     const perCurrency = Object.fromEntries(
       Object.entries(rawDebts).map(([currency, data]) => [
         currency,
         {
-          ...data,
-          simplifiedDebts: data.simplifiedDebts.map(s => ({
-            ...s,
-            currency,
-            venmoLink: currency === 'USD' && venmoMap.get(s.toId)
-              ? buildVenmoUrl(venmoMap.get(s.toId) as string, s.amount, `SplitWitMe: ${group.name}`)
-              : null,
-          })),
+          rawBalances: data.rawBalances.map(b => ({ ...b, balance: b.balance / 100 })),
+          simplifiedDebts: data.simplifiedDebts.map(s => {
+            const amountDollars = s.amount / 100
+            return {
+              ...s,
+              amount: amountDollars,
+              currency,
+              venmoLink: currency === 'USD' && venmoMap.get(s.toId)
+                ? buildVenmoUrl(venmoMap.get(s.toId) as string, amountDollars, `SplitWitMe: ${group.name}`)
+                : null,
+            }
+          }),
         },
       ])
     )

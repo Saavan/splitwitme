@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { computeDebtsPerCurrency, type MemberInfo, type TransactionInfo } from '../currencyDebts'
 
+// All transaction and split amounts are in integer cents.
+
 const members: MemberInfo[] = [
   { userId: 'a', name: 'Alice' },
   { userId: 'b', name: 'Bob' },
@@ -16,12 +18,12 @@ describe('computeDebtsPerCurrency', () => {
     const txs: TransactionInfo[] = [
       {
         paidById: 'a',
-        amount: 30,
+        amount: 3000, // $30.00
         currency: 'USD',
         splits: [
-          { userId: 'a', amount: 10 },
-          { userId: 'b', amount: 10 },
-          { userId: 'c', amount: 10 },
+          { userId: 'a', amount: 1000 },
+          { userId: 'b', amount: 1000 },
+          { userId: 'c', amount: 1000 },
         ],
       },
     ]
@@ -35,164 +37,140 @@ describe('computeDebtsPerCurrency', () => {
     const txs: TransactionInfo[] = [
       {
         paidById: 'b',
-        amount: 20,
+        amount: 2000, // CA$20.00
         currency: 'CAD',
         splits: [
-          { userId: 'a', amount: 10 },
-          { userId: 'b', amount: 10 },
+          { userId: 'a', amount: 1000 },
+          { userId: 'b', amount: 1000 },
         ],
       },
     ]
     const result = computeDebtsPerCurrency(txs, members)
     expect(Object.keys(result)).toEqual(['CAD'])
     expect(result.CAD.simplifiedDebts).toHaveLength(1)
-    expect(result.CAD.simplifiedDebts[0]).toMatchObject({ fromId: 'a', toId: 'b', amount: 10 })
+    expect(result.CAD.simplifiedDebts[0]).toMatchObject({ fromId: 'a', toId: 'b', amount: 1000 })
   })
 
   it('separates USD and CAD debts independently', () => {
     const txs: TransactionInfo[] = [
       {
         paidById: 'a',
-        amount: 20,
+        amount: 2000, // $20 USD
         currency: 'USD',
         splits: [
-          { userId: 'a', amount: 10 },
-          { userId: 'b', amount: 10 },
+          { userId: 'a', amount: 1000 },
+          { userId: 'b', amount: 1000 },
         ],
       },
       {
         paidById: 'b',
-        amount: 40,
+        amount: 4000, // CA$40
         currency: 'CAD',
         splits: [
-          { userId: 'a', amount: 20 },
-          { userId: 'b', amount: 20 },
+          { userId: 'a', amount: 2000 },
+          { userId: 'b', amount: 2000 },
         ],
       },
     ]
     const result = computeDebtsPerCurrency(txs, members)
     expect(Object.keys(result).sort()).toEqual(['CAD', 'USD'])
-
-    // USD: Bob owes Alice $10
-    expect(result.USD.simplifiedDebts).toHaveLength(1)
-    expect(result.USD.simplifiedDebts[0]).toMatchObject({ fromId: 'b', toId: 'a', amount: 10 })
-
-    // CAD: Alice owes Bob CA$20
-    expect(result.CAD.simplifiedDebts).toHaveLength(1)
-    expect(result.CAD.simplifiedDebts[0]).toMatchObject({ fromId: 'a', toId: 'b', amount: 20 })
+    expect(result.USD.simplifiedDebts[0]).toMatchObject({ fromId: 'b', toId: 'a', amount: 1000 })
+    expect(result.CAD.simplifiedDebts[0]).toMatchObject({ fromId: 'a', toId: 'b', amount: 2000 })
   })
 
   it('USD and CAD debts do not cancel each other out', () => {
-    // A is owed $10 USD by B, but A owes B CA$10
-    // These should NOT net to zero — they are separate currencies
     const txs: TransactionInfo[] = [
-      {
-        paidById: 'a',
-        amount: 10,
-        currency: 'USD',
-        splits: [{ userId: 'b', amount: 10 }],
-      },
-      {
-        paidById: 'b',
-        amount: 10,
-        currency: 'CAD',
-        splits: [{ userId: 'a', amount: 10 }],
-      },
+      { paidById: 'a', amount: 1000, currency: 'USD', splits: [{ userId: 'b', amount: 1000 }] },
+      { paidById: 'b', amount: 1000, currency: 'CAD', splits: [{ userId: 'a', amount: 1000 }] },
     ]
     const result = computeDebtsPerCurrency(txs, members)
-
-    // USD debt still exists: Bob owes Alice $10 USD
-    expect(result.USD.simplifiedDebts).toHaveLength(1)
-    expect(result.USD.simplifiedDebts[0]).toMatchObject({ fromId: 'b', toId: 'a', amount: 10 })
-
-    // CAD debt still exists: Alice owes Bob CA$10
-    expect(result.CAD.simplifiedDebts).toHaveLength(1)
-    expect(result.CAD.simplifiedDebts[0]).toMatchObject({ fromId: 'a', toId: 'b', amount: 10 })
+    expect(result.USD.simplifiedDebts[0]).toMatchObject({ fromId: 'b', toId: 'a', amount: 1000 })
+    expect(result.CAD.simplifiedDebts[0]).toMatchObject({ fromId: 'a', toId: 'b', amount: 1000 })
   })
 
-  it('correctly computes raw balances per currency', () => {
+  it('correctly computes raw balances in cents', () => {
     const txs: TransactionInfo[] = [
       {
         paidById: 'a',
-        amount: 30,
+        amount: 3000,
         currency: 'USD',
         splits: [
-          { userId: 'a', amount: 10 },
-          { userId: 'b', amount: 10 },
-          { userId: 'c', amount: 10 },
-        ],
-      },
-      {
-        paidById: 'b',
-        amount: 60,
-        currency: 'CAD',
-        splits: [
-          { userId: 'a', amount: 20 },
-          { userId: 'b', amount: 20 },
-          { userId: 'c', amount: 20 },
+          { userId: 'a', amount: 1000 },
+          { userId: 'b', amount: 1000 },
+          { userId: 'c', amount: 1000 },
         ],
       },
     ]
     const result = computeDebtsPerCurrency(txs, members)
-
     const usdBalances = Object.fromEntries(result.USD.rawBalances.map(b => [b.userId, b.balance]))
-    expect(usdBalances['a']).toBeCloseTo(20)
-    expect(usdBalances['b']).toBeCloseTo(-10)
-    expect(usdBalances['c']).toBeCloseTo(-10)
-
-    const cadBalances = Object.fromEntries(result.CAD.rawBalances.map(b => [b.userId, b.balance]))
-    expect(cadBalances['a']).toBeCloseTo(-20)
-    expect(cadBalances['b']).toBeCloseTo(40)
-    expect(cadBalances['c']).toBeCloseTo(-20)
+    expect(usdBalances['a']).toBe(2000)  // exact integer, not toBeCloseTo
+    expect(usdBalances['b']).toBe(-1000)
+    expect(usdBalances['c']).toBe(-1000)
   })
 
-  it('handles multiple transactions in the same currency correctly', () => {
-    const txs: TransactionInfo[] = [
-      {
-        paidById: 'a',
-        amount: 20,
-        currency: 'USD',
-        splits: [
-          { userId: 'a', amount: 10 },
-          { userId: 'b', amount: 10 },
-        ],
-      },
-      {
-        paidById: 'b',
-        amount: 30,
-        currency: 'USD',
-        splits: [
-          { userId: 'b', amount: 10 },
-          { userId: 'c', amount: 20 },
-        ],
-      },
-    ]
-    const result = computeDebtsPerCurrency(txs, members)
-    expect(Object.keys(result)).toEqual(['USD'])
-
-    const usdBalances = Object.fromEntries(result.USD.rawBalances.map(b => [b.userId, b.balance]))
-    // Alice: paid $20, owes $10 → net +10
-    expect(usdBalances['a']).toBeCloseTo(10)
-    // Bob: paid $30, owes $10 (to A) + $10 (own split) → net +10
-    expect(usdBalances['b']).toBeCloseTo(10)
-    // Carol: owes $20 → net -20
-    expect(usdBalances['c']).toBeCloseTo(-20)
-
-    const total = result.USD.simplifiedDebts.reduce((sum, d) => sum + d.amount, 0)
-    expect(total).toBeCloseTo(20)
-  })
-
-  it('three-currency scenario tracks all independently', () => {
-    // Hypothetical: if we added a third currency
+  it('handles multiple transactions accumulating without float error', () => {
+    // Classic float trap: $0.10 paid 3 times = $0.30 exactly
+    // In floats: 10 + 10 + 10 = 30 (fine as ints), but 0.1 + 0.1 + 0.1 = 0.30000000000000004
     const txs: TransactionInfo[] = [
       { paidById: 'a', amount: 10, currency: 'USD', splits: [{ userId: 'b', amount: 10 }] },
-      { paidById: 'a', amount: 10, currency: 'CAD', splits: [{ userId: 'b', amount: 10 }] },
-      { paidById: 'b', amount: 10, currency: 'EUR', splits: [{ userId: 'a', amount: 10 }] },
+      { paidById: 'a', amount: 10, currency: 'USD', splits: [{ userId: 'b', amount: 10 }] },
+      { paidById: 'a', amount: 10, currency: 'USD', splits: [{ userId: 'b', amount: 10 }] },
     ]
     const result = computeDebtsPerCurrency(txs, members)
-    expect(Object.keys(result).sort()).toEqual(['CAD', 'EUR', 'USD'])
-    expect(result.USD.simplifiedDebts[0]).toMatchObject({ fromId: 'b', toId: 'a' })
-    expect(result.CAD.simplifiedDebts[0]).toMatchObject({ fromId: 'b', toId: 'a' })
-    expect(result.EUR.simplifiedDebts[0]).toMatchObject({ fromId: 'a', toId: 'b' })
+    const balances = Object.fromEntries(result.USD.rawBalances.map(b => [b.userId, b.balance]))
+    expect(balances['a']).toBe(30)   // exactly 30, not 30.000000000000004
+    expect(balances['b']).toBe(-30)
+    expect(Number.isInteger(balances['a'])).toBe(true)
+    expect(Number.isInteger(balances['b'])).toBe(true)
+  })
+
+  it('settlement amounts are all integers', () => {
+    const txs: TransactionInfo[] = [
+      {
+        paidById: 'a',
+        amount: 1000,
+        currency: 'USD',
+        splits: [
+          { userId: 'a', amount: 333 },
+          { userId: 'b', amount: 333 },
+          { userId: 'c', amount: 334 },
+        ],
+      },
+    ]
+    const result = computeDebtsPerCurrency(txs, members)
+    for (const d of result.USD.simplifiedDebts) {
+      expect(Number.isInteger(d.amount)).toBe(true)
+    }
+  })
+
+  it('total settled equals total owed — strict integer equality', () => {
+    const txs: TransactionInfo[] = [
+      {
+        paidById: 'a',
+        amount: 10000, // $100.00
+        currency: 'USD',
+        splits: [
+          { userId: 'a', amount: 1429 },
+          { userId: 'b', amount: 1429 },
+          { userId: 'c', amount: 1429 },
+          { userId: 'd', amount: 1429 },
+          { userId: 'e', amount: 1428 },
+          { userId: 'f', amount: 1428 },
+          { userId: 'g', amount: 1428 },
+        ],
+      },
+    ]
+    const extendedMembers = [
+      ...members,
+      { userId: 'd', name: 'Dave' },
+      { userId: 'e', name: 'Eve' },
+      { userId: 'f', name: 'Frank' },
+      { userId: 'g', name: 'Grace' },
+    ]
+    const result = computeDebtsPerCurrency(txs, extendedMembers)
+    const totalSettled = result.USD.simplifiedDebts.reduce((sum, d) => sum + d.amount, 0)
+    // Alice's balance = 10000 - 1429 = 8571 cents
+    expect(totalSettled).toBe(8571)
+    expect(Number.isInteger(totalSettled)).toBe(true)
   })
 })

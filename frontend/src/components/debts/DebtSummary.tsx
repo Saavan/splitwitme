@@ -3,6 +3,7 @@ import { ArrowRight, Bell } from 'lucide-react'
 import type { DebtsData, SimplifiedDebt, ReminderLevel } from '@/hooks/useDebts'
 import { useCreateTransaction } from '@/hooks/useTransactions'
 import { useSendReminder } from '@/hooks/useDebts'
+import { combineCurrencies, type Settlement } from '@/lib/money'
 import { VenmoButton } from './VenmoButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useToast } from '@/components/ui/toast'
 
 const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', CAD: 'CA$' }
+const DEFAULT_USD_TO_CAD = 1.39
 
 interface DebtSummaryProps {
   debts: DebtsData
@@ -21,9 +23,15 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
   const [confirmingDebt, setConfirmingDebt] = useState<SimplifiedDebt | null>(null)
   const [cashAmount, setCashAmount] = useState('')
   const [remindingDebt, setRemindingDebt] = useState<SimplifiedDebt | null>(null)
+  const [autoConvert, setAutoConvert] = useState(true)
+  const [rateInput, setRateInput] = useState(String(DEFAULT_USD_TO_CAD))
   const createTx = useCreateTransaction(groupId)
   const sendReminder = useSendReminder(groupId)
   const { toast } = useToast()
+
+  const currencyEntries = Object.entries(debts.perCurrency)
+  const isMultiCurrency = currencyEntries.length > 1
+  const rate = parseFloat(rateInput) || DEFAULT_USD_TO_CAD
 
   const handleSendReminder = async (level: ReminderLevel) => {
     if (!remindingDebt) return
@@ -69,7 +77,6 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
     }
   }
 
-  const currencyEntries = Object.entries(debts.perCurrency)
   const allSettled = currencyEntries.every(([, data]) => data.simplifiedDebts.length === 0)
 
   if (allSettled || currencyEntries.length === 0) {
@@ -83,56 +90,112 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
 
   const sym = (currency: string) => CURRENCY_SYMBOL[currency] ?? currency
 
+  // Converted view: merge all currencies into USD and re-simplify
+  const convertedDebts: Settlement[] = (isMultiCurrency && autoConvert)
+    ? combineCurrencies(debts.perCurrency, rate)
+    : []
+
+  const renderDebtRow = (
+    debt: SimplifiedDebt | Settlement,
+    currency: string,
+    venmoLink?: string | null,
+    i?: number
+  ) => (
+    <div key={i} className="flex flex-wrap items-center gap-2 p-3 rounded-lg border">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <span className="font-medium text-sm truncate">{debt.fromName}</span>
+        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        <span className="font-medium text-sm truncate">{debt.toName}</span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0 ml-auto">
+        <span className="font-semibold">{sym(currency)}{debt.amount.toFixed(2)}</span>
+        {debt.toId === currentUserId && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setRemindingDebt(debt as SimplifiedDebt)}
+            title={`Send reminder to ${debt.fromName}`}
+          >
+            <Bell className="h-3.5 w-3.5 mr-1" />
+            Remind
+          </Button>
+        )}
+        {debt.fromId === currentUserId && (
+          <>
+            <Button size="sm" variant="outline" onClick={() => openConfirm(debt as SimplifiedDebt)}>
+              Paid in cash
+            </Button>
+            {venmoLink !== undefined && (
+              <VenmoButton venmoLink={venmoLink ?? null} amount={debt.amount} recipientName={debt.toName} />
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+
   return (
     <>
       <div className="space-y-6">
-        {currencyEntries.map(([currency, data]) => {
-          if (data.simplifiedDebts.length === 0) return null
-          return (
-            <div key={currency}>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                {currency} Debts
-              </p>
-              <div className="space-y-3">
-                {data.simplifiedDebts.map((debt, i) => (
-                  <div key={i} className="flex flex-wrap items-center gap-2 p-3 rounded-lg border">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className="font-medium text-sm truncate">{debt.fromName}</span>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="font-medium text-sm truncate">{debt.toName}</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-auto">
-                      <span className="font-semibold">{sym(currency)}{debt.amount.toFixed(2)}</span>
-                      {debt.toId === currentUserId && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setRemindingDebt(debt)}
-                          title={`Send reminder to ${debt.fromName}`}
-                        >
-                          <Bell className="h-3.5 w-3.5 mr-1" />
-                          Remind
-                        </Button>
-                      )}
-                      {debt.fromId === currentUserId && (
-                        <>
-                          <Button size="sm" variant="outline" onClick={() => openConfirm(debt)}>
-                            Paid in cash
-                          </Button>
-                          <VenmoButton
-                            venmoLink={debt.venmoLink}
-                            amount={debt.amount}
-                            recipientName={debt.toName}
-                          />
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
+        {/* Multi-currency conversion controls */}
+        {isMultiCurrency && (
+          <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border bg-muted/40">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={autoConvert}
+                onChange={e => setAutoConvert(e.target.checked)}
+                className="h-4 w-4 rounded accent-primary"
+              />
+              <span className="text-sm font-medium">Automatically convert currencies</span>
+            </label>
+            {autoConvert && (
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="text-sm text-muted-foreground">1 USD =</span>
+                <Input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={rateInput}
+                  onChange={e => setRateInput(e.target.value)}
+                  className="w-24 h-8 text-sm"
+                />
+                <span className="text-sm text-muted-foreground">CAD</span>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Converted view */}
+        {isMultiCurrency && autoConvert ? (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+              USD (converted at 1 USD = {rate.toFixed(2)} CAD)
+            </p>
+            <div className="space-y-3">
+              {convertedDebts.length === 0
+                ? <p className="text-sm text-green-600 font-medium">All settled up!</p>
+                : convertedDebts.map((debt, i) => renderDebtRow(debt, 'USD', undefined, i))}
             </div>
-          )
-        })}
+          </div>
+        ) : (
+          /* Per-currency view */
+          currencyEntries.map(([currency, data]) => {
+            if (data.simplifiedDebts.length === 0) return null
+            return (
+              <div key={currency}>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                  {currency} Debts
+                </p>
+                <div className="space-y-3">
+                  {data.simplifiedDebts.map((debt, i) =>
+                    renderDebtRow(debt, currency, debt.venmoLink, i)
+                  )}
+                </div>
+              </div>
+            )
+          })
+        )}
       </div>
 
       <Dialog open={!!remindingDebt} onOpenChange={open => { if (!open) setRemindingDebt(null) }}>

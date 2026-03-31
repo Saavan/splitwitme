@@ -40,3 +40,87 @@ export function splitsMatchTotal(amounts: number[], total: number): boolean {
   const splitCents = amounts.reduce((sum, a) => sum + toCents(a), 0)
   return splitCents === toCents(total)
 }
+
+// --- Currency conversion & debt simplification ---
+
+export interface Balance {
+  userId: string
+  name: string
+  balance: number // dollars
+}
+
+export interface Settlement {
+  fromId: string
+  fromName: string
+  toId: string
+  toName: string
+  amount: number // dollars
+}
+
+/** Greedy debt simplification — mirrors the backend algorithm, works in integer cents. */
+export function simplifyDebts(balances: Balance[]): Settlement[] {
+  const creditors = balances.map(b => ({ ...b, balance: toCents(b.balance) })).filter(b => b.balance > 0)
+  const debtors = balances.map(b => ({ ...b, balance: toCents(b.balance) })).filter(b => b.balance < 0)
+
+  creditors.sort((a, b) => b.balance - a.balance)
+  debtors.sort((a, b) => a.balance - b.balance)
+
+  const settlements: Settlement[] = []
+  let ci = 0
+  let di = 0
+
+  while (ci < creditors.length && di < debtors.length) {
+    const creditor = creditors[ci]
+    const debtor = debtors[di]
+    const amount = Math.min(creditor.balance, Math.abs(debtor.balance))
+
+    if (amount > 0) {
+      settlements.push({
+        fromId: debtor.userId,
+        fromName: debtor.name,
+        toId: creditor.userId,
+        toName: creditor.name,
+        amount: toDollars(amount),
+      })
+    }
+
+    creditor.balance -= amount
+    debtor.balance += amount
+    if (creditor.balance <= 0) ci++
+    if (debtor.balance >= 0) di++
+  }
+
+  return settlements
+}
+
+/**
+ * Combine multi-currency raw balances into a single USD view using the given
+ * 1 USD = usdToCadRate CAD exchange rate, then re-simplify debts.
+ */
+export function combineCurrencies(
+  perCurrency: Record<string, { rawBalances: Balance[] }>,
+  usdToCadRate: number
+): Settlement[] {
+  const combined = new Map<string, { name: string; balance: number }>()
+
+  for (const [currency, { rawBalances }] of Object.entries(perCurrency)) {
+    for (const rb of rawBalances) {
+      // Convert each currency's balance to USD
+      const usdBalance = currency === 'CAD' ? rb.balance / usdToCadRate : rb.balance
+      const existing = combined.get(rb.userId)
+      if (existing) {
+        existing.balance += usdBalance
+      } else {
+        combined.set(rb.userId, { name: rb.name, balance: usdBalance })
+      }
+    }
+  }
+
+  const balances: Balance[] = Array.from(combined.entries()).map(([userId, { name, balance }]) => ({
+    userId,
+    name,
+    balance,
+  }))
+
+  return simplifyDebts(balances)
+}

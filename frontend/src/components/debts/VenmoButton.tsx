@@ -4,9 +4,10 @@ interface VenmoButtonProps {
   venmoLink: string | null
   amount: number
   recipientName: string
+  onAfterOpen?: () => void
 }
 
-export function VenmoButton({ venmoLink, amount, recipientName }: VenmoButtonProps) {
+export function VenmoButton({ venmoLink, amount, recipientName, onAfterOpen }: VenmoButtonProps) {
   if (!venmoLink) {
     return (
       <Button
@@ -21,11 +22,19 @@ export function VenmoButton({ venmoLink, amount, recipientName }: VenmoButtonPro
     )
   }
 
+  const handleClick = () => {
+    window.open(venmoLink, '_blank', 'noopener,noreferrer')
+    onAfterOpen?.()
+  }
+
   return (
-    <a href={venmoLink} target="_blank" rel="noopener noreferrer">
-      <Button size="sm" variant="outline" className="border-blue-500 text-blue-600 hover:bg-blue-50">
-        <span className="hidden sm:inline">Pay ${amount.toFixed(2)} on </span>Venmo
-      </Button>
-    </a>
+    <Button
+      size="sm"
+      variant="outline"
+      className="border-blue-500 text-blue-600 hover:bg-blue-50"
+      onClick={handleClick}
+    >
+      <span className="hidden sm:inline">Pay ${amount.toFixed(2)} on </span>Venmo
+    </Button>
   )
 }

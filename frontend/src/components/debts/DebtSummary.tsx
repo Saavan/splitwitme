@@ -22,6 +22,7 @@ interface DebtSummaryProps {
 export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps) {
   const [confirmingDebt, setConfirmingDebt] = useState<SimplifiedDebt | null>(null)
   const [cashAmount, setCashAmount] = useState('')
+  const [venmoConfirmingDebt, setVenmoConfirmingDebt] = useState<SimplifiedDebt | null>(null)
   const [remindingDebt, setRemindingDebt] = useState<SimplifiedDebt | null>(null)
   const [remindingAll, setRemindingAll] = useState(false)
   const [remindAllLevel, setRemindAllLevel] = useState<ReminderLevel | null>(null)
@@ -65,6 +66,23 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
   const openConfirm = (debt: SimplifiedDebt) => {
     setConfirmingDebt(debt)
     setCashAmount(debt.amount.toFixed(2))
+  }
+
+  const handleVenmoConfirm = async () => {
+    if (!venmoConfirmingDebt) return
+    try {
+      await createTx.mutateAsync({
+        description: `Venmo payment to ${venmoConfirmingDebt.toName}`,
+        amount: venmoConfirmingDebt.amount,
+        currency: venmoConfirmingDebt.currency,
+        paidById: currentUserId,
+        splits: [{ userId: venmoConfirmingDebt.toId, amount: venmoConfirmingDebt.amount }],
+      })
+      toast('Venmo payment recorded!', 'success')
+      setVenmoConfirmingDebt(null)
+    } catch (err: any) {
+      toast(err.response?.data?.error || 'Failed to record payment', 'error')
+    }
   }
 
   const closeConfirm = () => {
@@ -150,7 +168,12 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
               Paid in cash
             </Button>
             {venmoLink !== undefined && (
-              <VenmoButton venmoLink={venmoLink ?? null} amount={debt.amount} recipientName={debt.toName} />
+              <VenmoButton
+                venmoLink={venmoLink ?? null}
+                amount={debt.amount}
+                recipientName={debt.toName}
+                onAfterOpen={() => setVenmoConfirmingDebt(debt as SimplifiedDebt)}
+              />
             )}
           </>
         )}
@@ -363,6 +386,30 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
             </Button>
             <Button onClick={handleSendReminderAll} disabled={sendReminderAll.isPending}>
               {sendReminderAll.isPending ? 'Sending...' : `Send ${debtorsOwingMe.length} reminder${debtorsOwingMe.length === 1 ? '' : 's'}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!venmoConfirmingDebt} onOpenChange={open => { if (!open) setVenmoConfirmingDebt(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Payment completed?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground mt-1">
+            Did you complete the Venmo payment of{' '}
+            <strong>
+              {venmoConfirmingDebt ? sym(venmoConfirmingDebt.currency) : ''}
+              {venmoConfirmingDebt?.amount.toFixed(2)}
+            </strong>{' '}
+            to <strong>{venmoConfirmingDebt?.toName}</strong>?
+          </p>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setVenmoConfirmingDebt(null)} disabled={createTx.isPending}>
+              No
+            </Button>
+            <Button onClick={handleVenmoConfirm} disabled={createTx.isPending}>
+              {createTx.isPending ? 'Recording...' : 'Yes, mark as paid'}
             </Button>
           </DialogFooter>
         </DialogContent>

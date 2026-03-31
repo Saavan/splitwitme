@@ -13,7 +13,7 @@ interface GroupCardProps {
 }
 
 export function GroupCard({ group }: GroupCardProps) {
-  const nonZeroBalances = Object.entries(group.netBalances).filter(([, v]) => Math.abs(v) > 0.001)
+  const nonZeroBalances = (Object.entries(group.netBalances) as [string, number][]).filter(([, v]) => Math.abs(v) > 0.001)
   const isMultiCurrency = nonZeroBalances.length > 1
 
   // When multiple currencies, combine into a single USD balance using default rate

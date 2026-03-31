@@ -37,6 +37,15 @@ export function useSendReminder(groupId: string) {
   })
 }
 
+export function useSendReminderAll(groupId: string) {
+  return useMutation({
+    mutationFn: async (data: { level: ReminderLevel }) => {
+      const res = await apiClient.post(`/groups/${groupId}/debts/remind-all`, data)
+      return res.data as { sent: number }
+    },
+  })
+}
+
 export function useDebts(groupId: string) {
   return useQuery<DebtsData>({
     queryKey: ['debts', groupId],

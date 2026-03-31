@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ArrowRight, Bell } from 'lucide-react'
 import type { DebtsData, SimplifiedDebt, ReminderLevel } from '@/hooks/useDebts'
 import { useCreateTransaction } from '@/hooks/useTransactions'
-import { useSendReminder } from '@/hooks/useDebts'
+import { useSendReminder, useSendReminderAll } from '@/hooks/useDebts'
 import { combineCurrencies, type Settlement } from '@/lib/money'
 import { VenmoButton } from './VenmoButton'
 import { Button } from '@/components/ui/button'
@@ -23,10 +23,13 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
   const [confirmingDebt, setConfirmingDebt] = useState<SimplifiedDebt | null>(null)
   const [cashAmount, setCashAmount] = useState('')
   const [remindingDebt, setRemindingDebt] = useState<SimplifiedDebt | null>(null)
+  const [remindingAll, setRemindingAll] = useState(false)
+  const [remindAllLevel, setRemindAllLevel] = useState<ReminderLevel | null>(null)
   const [autoConvert, setAutoConvert] = useState(true)
   const [rateInput, setRateInput] = useState(String(DEFAULT_USD_TO_CAD))
   const createTx = useCreateTransaction(groupId)
   const sendReminder = useSendReminder(groupId)
+  const sendReminderAll = useSendReminderAll(groupId)
   const { toast } = useToast()
 
   const currencyEntries = Object.entries(debts.perCurrency)
@@ -42,6 +45,20 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
     } catch {
       toast('Failed to send reminder', 'error')
       setRemindingDebt(null)
+    }
+  }
+
+  const handleSendReminderAll = async () => {
+    if (!remindAllLevel) return
+    try {
+      const result = await sendReminderAll.mutateAsync({ level: remindAllLevel })
+      toast(`Reminders sent to ${result.sent} ${result.sent === 1 ? 'person' : 'people'}!`, 'success')
+      setRemindAllLevel(null)
+      setRemindingAll(false)
+    } catch {
+      toast('Failed to send reminders', 'error')
+      setRemindAllLevel(null)
+      setRemindingAll(false)
     }
   }
 
@@ -90,6 +107,13 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
 
   const sym = (currency: string) => CURRENCY_SYMBOL[currency] ?? currency
 
+  // Collect all debtors who owe the current user (for Remind All)
+  const debtorsOwingMe = currencyEntries.flatMap(([currency, data]) =>
+    data.simplifiedDebts
+      .filter(d => d.toId === currentUserId)
+      .map(d => ({ name: d.fromName, amount: d.amount, currency }))
+  )
+
   // Converted view: merge all currencies into USD and re-simplify
   const convertedDebts: Settlement[] = (isMultiCurrency && autoConvert)
     ? combineCurrencies(debts.perCurrency, rate)
@@ -137,6 +161,20 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
   return (
     <>
       <div className="space-y-6">
+        {/* Remind All button — only shown when 2+ people owe the current user */}
+        {debtorsOwingMe.length >= 2 && (
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setRemindingAll(true)}
+            >
+              <Bell className="h-3.5 w-3.5 mr-1" />
+              Remind All
+            </Button>
+          </div>
+        )}
+
         {/* Multi-currency conversion controls */}
         {isMultiCurrency && (
           <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border bg-muted/40">
@@ -250,6 +288,81 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
           <DialogFooter className="mt-2">
             <Button variant="ghost" onClick={() => setRemindingDebt(null)} disabled={sendReminder.isPending}>
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Step 1: Pick aggression level */}
+      <Dialog open={remindingAll && !remindAllLevel} onOpenChange={open => { if (!open) setRemindingAll(false) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remind everyone — how urgent is it?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground -mt-1">
+            Reminders will be sent to <strong>{debtorsOwingMe.length}</strong> {debtorsOwingMe.length === 1 ? 'person' : 'people'}.
+          </p>
+          <div className="flex flex-col gap-3 mt-2">
+            <Button
+              variant="outline"
+              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left w-full"
+              onClick={() => setRemindAllLevel('friendly')}
+            >
+              <img src="/duck_friendly.png" alt="Friendly duck" className="h-12 w-auto object-contain shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium text-sm">Eh, sometime soon</p>
+                <p className="text-xs text-muted-foreground whitespace-normal">A polite nudge. The duck is happy.</p>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left w-full"
+              onClick={() => setRemindAllLevel('medium')}
+            >
+              <img src="/duck_medium.png" alt="Medium duck" className="h-12 w-auto object-contain shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium text-sm">I'd like it back</p>
+                <p className="text-xs text-muted-foreground whitespace-normal">Firm but fair. The duck is not amused.</p>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left w-full border-red-200 hover:border-red-400 hover:bg-red-50"
+              onClick={() => setRemindAllLevel('angry')}
+            >
+              <img src="/duck_angry.png" alt="Angry duck" className="h-12 w-auto object-contain shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium text-sm text-red-600 whitespace-normal">I'm calling the mob to collect my money</p>
+                <p className="text-xs text-muted-foreground whitespace-normal">Final warning. The duck has been informed.</p>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter className="mt-2">
+            <Button variant="ghost" onClick={() => setRemindingAll(false)}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Step 2: Confirm recipients */}
+      <Dialog open={remindingAll && !!remindAllLevel} onOpenChange={open => { if (!open) { setRemindAllLevel(null) } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm — send reminders to {debtorsOwingMe.length} {debtorsOwingMe.length === 1 ? 'person' : 'people'}?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 mt-1">
+            {debtorsOwingMe.map((d, i) => (
+              <div key={i} className="flex items-center justify-between text-sm">
+                <span className="font-medium">{d.name}</span>
+                <span className="text-muted-foreground">{sym(d.currency)}{d.amount.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setRemindAllLevel(null)} disabled={sendReminderAll.isPending}>
+              Back
+            </Button>
+            <Button onClick={handleSendReminderAll} disabled={sendReminderAll.isPending}>
+              {sendReminderAll.isPending ? 'Sending...' : `Send ${debtorsOwingMe.length} reminder${debtorsOwingMe.length === 1 ? '' : 's'}`}
             </Button>
           </DialogFooter>
         </DialogContent>

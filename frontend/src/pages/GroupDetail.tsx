@@ -38,6 +38,9 @@ export function GroupDetail() {
   const { toast } = useToast()
 
   const [tab, setTab] = useState<Tab>('transactions')
+  const [autoConvert, setAutoConvert] = useState(true)
+  const [rateInput, setRateInput] = useState('1.39')
+  const rate = parseFloat(rateInput) || 1.39
   const [showAddMember, setShowAddMember] = useState(false)
   const [removePending, setRemovePending] = useState<{ userId: string; name: string } | null>(null)
   const [showNewTx, setShowNewTx] = useState(false)
@@ -163,7 +166,7 @@ export function GroupDetail() {
 
         {/* Debt summary banner */}
         {debts && (
-          <DebtBanner debts={debts} groupId={id!} currentUserId={user?.id || ''} />
+          <DebtBanner debts={debts} groupId={id!} currentUserId={user?.id || ''} autoConvert={autoConvert} rate={rate} />
         )}
 
         {/* Tabs */}
@@ -256,7 +259,7 @@ export function GroupDetail() {
         {tab === 'debts' && (
           <div>
             {debts ? (
-              <DebtSummary debts={debts} groupId={id!} currentUserId={user?.id || ''} />
+              <DebtSummary debts={debts} groupId={id!} currentUserId={user?.id || ''} autoConvert={autoConvert} setAutoConvert={setAutoConvert} rateInput={rateInput} setRateInput={setRateInput} />
             ) : (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />

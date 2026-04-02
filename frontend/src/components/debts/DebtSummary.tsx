@@ -17,9 +17,13 @@ interface DebtSummaryProps {
   debts: DebtsData
   groupId: string
   currentUserId: string
+  autoConvert: boolean
+  setAutoConvert: (v: boolean) => void
+  rateInput: string
+  setRateInput: (v: string) => void
 }
 
-export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps) {
+export function DebtSummary({ debts, groupId, currentUserId, autoConvert, setAutoConvert, rateInput, setRateInput }: DebtSummaryProps) {
   const [confirmingDebt, setConfirmingDebt] = useState<SimplifiedDebt | null>(null)
   const [cashAmount, setCashAmount] = useState('')
   const [venmoConfirmingDebt, setVenmoConfirmingDebt] = useState<SimplifiedDebt | null>(null)
@@ -28,8 +32,6 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
   const [markAsPaidAmount, setMarkAsPaidAmount] = useState('')
   const [remindingAll, setRemindingAll] = useState(false)
   const [remindAllLevel, setRemindAllLevel] = useState<ReminderLevel | null>(null)
-  const [autoConvert, setAutoConvert] = useState(true)
-  const [rateInput, setRateInput] = useState(String(DEFAULT_USD_TO_CAD))
   const createTx = useCreateTransaction(groupId)
   const sendReminder = useSendReminder(groupId)
   const sendReminderAll = useSendReminderAll(groupId)

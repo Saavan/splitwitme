@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { CheckCircle, CreditCard } from 'lucide-react'
-import type { DebtsData, SimplifiedDebt } from '@/hooks/useDebts'
+import { Bell, CheckCircle, CreditCard } from 'lucide-react'
+import type { DebtsData, SimplifiedDebt, ReminderLevel } from '@/hooks/useDebts'
 import { useCreateTransaction } from '@/hooks/useTransactions'
+import { useSendReminder } from '@/hooks/useDebts'
+import { combineCurrencies, type Settlement } from '@/lib/money'
 import { VenmoButton } from './VenmoButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,16 +13,19 @@ import { useToast } from '@/components/ui/toast'
 const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', CAD: 'CA$' }
 const sym = (c: string) => CURRENCY_SYMBOL[c] ?? c
 
-type DebtEntry = SimplifiedDebt & { currency: string }
+type DebtEntry = (SimplifiedDebt | Settlement) & { currency: string }
 
 interface DebtBannerProps {
   debts: DebtsData
   groupId: string
   currentUserId: string
+  autoConvert: boolean
+  rate: number
 }
 
-export function DebtBanner({ debts, groupId, currentUserId }: DebtBannerProps) {
+export function DebtBanner({ debts, groupId, currentUserId, autoConvert, rate }: DebtBannerProps) {
   const createTx = useCreateTransaction(groupId)
+  const sendReminder = useSendReminder(groupId)
   const { toast } = useToast()
 
   const [payingDebt, setPayingDebt] = useState<DebtEntry | null>(null)
@@ -28,23 +33,28 @@ export function DebtBanner({ debts, groupId, currentUserId }: DebtBannerProps) {
   const [venmoConfirmingDebt, setVenmoConfirmingDebt] = useState<DebtEntry | null>(null)
   const [markingDebt, setMarkingDebt] = useState<DebtEntry | null>(null)
   const [markAmount, setMarkAmount] = useState('')
+  const [remindingDebt, setRemindingDebt] = useState<DebtEntry | null>(null)
 
+  const currencyEntries = Object.entries(debts.perCurrency)
+  const isMultiCurrency = currencyEntries.length > 1
+
+  // Mirror the same debt computation as DebtSummary
   const owes: DebtEntry[] = []
   const owed: DebtEntry[] = []
 
-  for (const [currency, data] of Object.entries(debts.perCurrency)) {
-    for (const debt of data.simplifiedDebts) {
-      if (debt.fromId === currentUserId) owes.push({ ...debt, currency })
-      if (debt.toId === currentUserId) owed.push({ ...debt, currency })
+  if (isMultiCurrency && autoConvert) {
+    const converted = combineCurrencies(debts.perCurrency, rate)
+    for (const debt of converted) {
+      if (debt.fromId === currentUserId) owes.push({ ...debt, currency: 'USD' })
+      if (debt.toId === currentUserId) owed.push({ ...debt, currency: 'USD' })
     }
-  }
-
-  if (owes.length === 0 && owed.length === 0) {
-    return (
-      <div className="rounded-lg border bg-green-50 p-4 mb-6">
-        <p className="font-semibold text-green-700">You owe: $0 — You're all Split Up!</p>
-      </div>
-    )
+  } else {
+    for (const [currency, data] of currencyEntries) {
+      for (const debt of data.simplifiedDebts) {
+        if (debt.fromId === currentUserId) owes.push({ ...debt, currency })
+        if (debt.toId === currentUserId) owed.push({ ...debt, currency })
+      }
+    }
   }
 
   const totalByCurrency = (entries: DebtEntry[]) =>
@@ -116,6 +126,35 @@ export function DebtBanner({ debts, groupId, currentUserId }: DebtBannerProps) {
     }
   }
 
+  const handleSendReminder = async (level: ReminderLevel) => {
+    if (!remindingDebt) return
+    try {
+      await sendReminder.mutateAsync({
+        debtorUserId: remindingDebt.fromId,
+        amount: remindingDebt.amount,
+        currency: remindingDebt.currency,
+        level,
+      })
+      toast(`Reminder sent to ${remindingDebt.fromName}!`, 'success')
+      setRemindingDebt(null)
+    } catch {
+      toast('Failed to send reminder', 'error')
+      setRemindingDebt(null)
+    }
+  }
+
+  if (owes.length === 0 && owed.length === 0) {
+    return (
+      <div className="rounded-lg border bg-green-50 p-4 mb-6">
+        <p className="font-semibold text-green-700">You owe: $0 — You're all Split Up!</p>
+      </div>
+    )
+  }
+
+  // venmoLink only exists on SimplifiedDebt (per-currency view), not on converted Settlement
+  const getVenmoLink = (debt: DebtEntry) =>
+    'venmoLink' in debt ? (debt as SimplifiedDebt).venmoLink : null
+
   return (
     <>
       <div className="rounded-lg border overflow-hidden mb-6">
@@ -137,7 +176,7 @@ export function DebtBanner({ debts, groupId, currentUserId }: DebtBannerProps) {
                       Pay in cash
                     </Button>
                     <VenmoButton
-                      venmoLink={debt.venmoLink}
+                      venmoLink={getVenmoLink(debt)}
                       amount={debt.amount}
                       recipientName={debt.toName}
                       onAfterOpen={() => setVenmoConfirmingDebt(debt)}
@@ -161,15 +200,24 @@ export function DebtBanner({ debts, groupId, currentUserId }: DebtBannerProps) {
                     <span className="text-sm font-medium">{debt.fromName}</span>
                     <span className="text-sm font-semibold">{sym(debt.currency)}{debt.amount.toFixed(2)}</span>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="self-start"
-                    onClick={() => { setMarkingDebt(debt); setMarkAmount(debt.amount.toFixed(2)) }}
-                  >
-                    <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                    Mark as paid
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setMarkingDebt(debt); setMarkAmount(debt.amount.toFixed(2)) }}
+                    >
+                      <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                      Mark as paid
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setRemindingDebt(debt)}
+                    >
+                      <Bell className="h-3.5 w-3.5 mr-1" />
+                      Remind
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -269,6 +317,64 @@ export function DebtBanner({ debts, groupId, currentUserId }: DebtBannerProps) {
             <Button variant="outline" onClick={closeMark} disabled={createTx.isPending}>Cancel</Button>
             <Button onClick={handleMark} disabled={createTx.isPending}>
               {createTx.isPending ? 'Recording...' : 'Confirm'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remind dialog */}
+      <Dialog open={!!remindingDebt} onOpenChange={open => { if (!open) setRemindingDebt(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>How badly do you want the money back?</DialogTitle>
+          </DialogHeader>
+          {remindingDebt && (
+            <p className="text-sm text-muted-foreground -mt-1">
+              Sending reminder to <strong>{remindingDebt.fromName}</strong> for{' '}
+              <strong>{sym(remindingDebt.currency)}{remindingDebt.amount.toFixed(2)}</strong>
+            </p>
+          )}
+          <div className="flex flex-col gap-3 mt-2">
+            <Button
+              variant="outline"
+              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left w-full"
+              disabled={sendReminder.isPending}
+              onClick={() => handleSendReminder('friendly')}
+            >
+              <img src="/duck_friendly.png" alt="Friendly duck" className="h-12 w-auto object-contain shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium text-sm">Eh, sometime soon</p>
+                <p className="text-xs text-muted-foreground whitespace-normal">A polite nudge. The duck is happy.</p>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left w-full"
+              disabled={sendReminder.isPending}
+              onClick={() => handleSendReminder('medium')}
+            >
+              <img src="/duck_medium.png" alt="Medium duck" className="h-12 w-auto object-contain shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium text-sm">I'd like it back</p>
+                <p className="text-xs text-muted-foreground whitespace-normal">Firm but fair. The duck is not amused.</p>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto py-3 px-4 flex items-center gap-3 justify-start text-left w-full border-red-200 hover:border-red-400 hover:bg-red-50"
+              disabled={sendReminder.isPending}
+              onClick={() => handleSendReminder('angry')}
+            >
+              <img src="/duck_angry.png" alt="Angry duck" className="h-12 w-auto object-contain shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium text-sm text-red-600 whitespace-normal">I'm calling the mob to collect my money</p>
+                <p className="text-xs text-muted-foreground whitespace-normal">Final warning. The duck has been informed.</p>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter className="mt-2">
+            <Button variant="ghost" onClick={() => setRemindingDebt(null)} disabled={sendReminder.isPending}>
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>

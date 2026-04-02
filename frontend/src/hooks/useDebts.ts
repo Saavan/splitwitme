@@ -15,6 +15,7 @@ export interface SimplifiedDebt {
   amount: number
   currency: string
   venmoLink: string | null
+  venmoRequestLink: string | null
 }
 
 export interface CurrencyDebts {

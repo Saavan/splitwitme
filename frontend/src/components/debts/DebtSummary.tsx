@@ -201,6 +201,17 @@ export function DebtSummary({ debts, groupId, currentUserId, autoConvert, setAut
                 <CheckCircle className="h-3.5 w-3.5 mr-1" />
                 Mark as paid
               </Button>
+              {(debt as SimplifiedDebt).venmoRequestLink && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                  onClick={() => window.open((debt as SimplifiedDebt).venmoRequestLink!, '_blank', 'noopener,noreferrer')}
+                  title={`Request payment from ${debt.fromName} on Venmo`}
+                >
+                  Request on Venmo
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="outline"

@@ -200,7 +200,7 @@ export function DebtBanner({ debts, groupId, currentUserId, autoConvert, rate }:
                     <span className="text-sm font-medium">{debt.fromName}</span>
                     <span className="text-sm font-semibold">{sym(debt.currency)}{debt.amount.toFixed(2)}</span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
                       variant="outline"
@@ -209,6 +209,16 @@ export function DebtBanner({ debts, groupId, currentUserId, autoConvert, rate }:
                       <CheckCircle className="h-3.5 w-3.5 mr-1" />
                       Mark as paid
                     </Button>
+                    {'venmoRequestLink' in debt && debt.venmoRequestLink && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                        onClick={() => window.open(debt.venmoRequestLink as string, '_blank', 'noopener,noreferrer')}
+                      >
+                        Request on Venmo
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"

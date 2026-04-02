@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../db'
 import { requireAuth } from '../middleware/requireAuth'
 import { computeDebtsPerCurrency } from '../lib/currencyDebts'
-import { buildVenmoUrl } from '../lib/venmo'
+import { buildVenmoUrl, buildVenmoRequestUrl } from '../lib/venmo'
 import { sendBalanceReminderEmail } from '../lib/email'
 import { config } from '../config'
 
@@ -53,6 +53,9 @@ debtsRouter.get('/', requireAuth, async (req, res, next) => {
               currency,
               venmoLink: currency === 'USD' && venmoMap.get(s.toId)
                 ? buildVenmoUrl(venmoMap.get(s.toId) as string, amountDollars, `SplitWitMe: ${group.name}`)
+                : null,
+              venmoRequestLink: currency === 'USD' && venmoMap.get(s.fromId)
+                ? buildVenmoRequestUrl(venmoMap.get(s.fromId) as string, amountDollars, `SplitWitMe: ${group.name}`)
                 : null,
             }
           }),

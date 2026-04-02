@@ -155,7 +155,7 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setRemindingDebt(debt as SimplifiedDebt)}
+            onClick={() => setRemindingDebt({ ...debt as SimplifiedDebt, currency })}
             title={`Send reminder to ${debt.fromName}`}
           >
             <Bell className="h-3.5 w-3.5 mr-1" />
@@ -164,7 +164,7 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
         )}
         {debt.fromId === currentUserId && (
           <>
-            <Button size="sm" variant="outline" onClick={() => openConfirm(debt as SimplifiedDebt)}>
+            <Button size="sm" variant="outline" onClick={() => openConfirm({ ...debt as SimplifiedDebt, currency })}>
               Paid in cash
             </Button>
             {venmoLink !== undefined && (
@@ -172,7 +172,7 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
                 venmoLink={venmoLink ?? null}
                 amount={debt.amount}
                 recipientName={debt.toName}
-                onAfterOpen={() => setVenmoConfirmingDebt(debt as SimplifiedDebt)}
+                onAfterOpen={() => setVenmoConfirmingDebt({ ...debt as SimplifiedDebt, currency })}
               />
             )}
           </>

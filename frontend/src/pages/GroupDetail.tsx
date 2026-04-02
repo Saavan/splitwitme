@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { TransactionItem } from '@/components/transactions/TransactionItem'
 import { TransactionForm } from '@/components/transactions/TransactionForm'
 import { DebtSummary } from '@/components/debts/DebtSummary'
+import { DebtBanner } from '@/components/debts/DebtBanner'
 import { AddMemberDialog } from '@/components/groups/AddMemberDialog'
 import { MontrealBackground } from '@/components/MontrealBackground'
 import { useToast } from '@/components/ui/toast'
@@ -159,6 +160,11 @@ export function GroupDetail() {
             <span className="hidden sm:inline">Add</span>
           </Button>
         </div>
+
+        {/* Debt summary banner */}
+        {debts && (
+          <DebtBanner debts={debts} groupId={id!} currentUserId={user?.id || ''} />
+        )}
 
         {/* Tabs */}
         <div className="flex border-b mb-6">

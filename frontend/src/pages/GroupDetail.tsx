@@ -282,6 +282,9 @@ export function GroupDetail() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{m.user.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{m.user.email}</p>
+                    {m.user.venmoHandle && (
+                      <p className="text-xs text-blue-600 truncate">@{m.user.venmoHandle}</p>
+                    )}
                   </div>
                   {m.role === 'OWNER' && (
                     <Badge variant="secondary">Owner</Badge>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRight, Bell } from 'lucide-react'
+import { ArrowRight, Bell, CheckCircle } from 'lucide-react'
 import type { DebtsData, SimplifiedDebt, ReminderLevel } from '@/hooks/useDebts'
 import { useCreateTransaction } from '@/hooks/useTransactions'
 import { useSendReminder, useSendReminderAll } from '@/hooks/useDebts'
@@ -24,6 +24,8 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
   const [cashAmount, setCashAmount] = useState('')
   const [venmoConfirmingDebt, setVenmoConfirmingDebt] = useState<SimplifiedDebt | null>(null)
   const [remindingDebt, setRemindingDebt] = useState<SimplifiedDebt | null>(null)
+  const [markingAsPaidDebt, setMarkingAsPaidDebt] = useState<SimplifiedDebt | null>(null)
+  const [markAsPaidAmount, setMarkAsPaidAmount] = useState('')
   const [remindingAll, setRemindingAll] = useState(false)
   const [remindAllLevel, setRemindAllLevel] = useState<ReminderLevel | null>(null)
   const [autoConvert, setAutoConvert] = useState(true)
@@ -90,6 +92,38 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
     setCashAmount('')
   }
 
+  const openMarkAsPaid = (debt: SimplifiedDebt) => {
+    setMarkingAsPaidDebt(debt)
+    setMarkAsPaidAmount(debt.amount.toFixed(2))
+  }
+
+  const closeMarkAsPaid = () => {
+    setMarkingAsPaidDebt(null)
+    setMarkAsPaidAmount('')
+  }
+
+  const handleMarkAsPaid = async () => {
+    if (!markingAsPaidDebt) return
+    const amount = parseFloat(markAsPaidAmount)
+    if (isNaN(amount) || amount <= 0) {
+      toast('Enter a valid amount', 'error')
+      return
+    }
+    try {
+      await createTx.mutateAsync({
+        description: `Payment from ${markingAsPaidDebt.fromName}`,
+        amount,
+        currency: markingAsPaidDebt.currency,
+        paidById: markingAsPaidDebt.fromId,
+        splits: [{ userId: currentUserId, amount }],
+      })
+      toast(`Payment from ${markingAsPaidDebt.fromName} recorded!`, 'success')
+      closeMarkAsPaid()
+    } catch (err: any) {
+      toast(err.response?.data?.error || 'Failed to record payment', 'error')
+    }
+  }
+
   const handleConfirm = async () => {
     if (!confirmingDebt) return
     const amount = parseFloat(cashAmount)
@@ -152,15 +186,26 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
       <div className="flex items-center gap-2 shrink-0 ml-auto">
         <span className="font-semibold">{sym(currency)}{debt.amount.toFixed(2)}</span>
         {debt.toId === currentUserId && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setRemindingDebt({ ...debt as SimplifiedDebt, currency })}
-            title={`Send reminder to ${debt.fromName}`}
-          >
-            <Bell className="h-3.5 w-3.5 mr-1" />
-            Remind
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => openMarkAsPaid({ ...debt as SimplifiedDebt, currency })}
+              title={`Mark payment from ${debt.fromName} as received`}
+            >
+              <CheckCircle className="h-3.5 w-3.5 mr-1" />
+              Mark as paid
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setRemindingDebt({ ...debt as SimplifiedDebt, currency })}
+              title={`Send reminder to ${debt.fromName}`}
+            >
+              <Bell className="h-3.5 w-3.5 mr-1" />
+              Remind
+            </Button>
+          </>
         )}
         {debt.fromId === currentUserId && (
           <>
@@ -410,6 +455,44 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
             </Button>
             <Button onClick={handleVenmoConfirm} disabled={createTx.isPending}>
               {createTx.isPending ? 'Recording...' : 'Yes, mark as paid'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!markingAsPaidDebt} onOpenChange={open => { if (!open) closeMarkAsPaid() }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark as paid</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <p className="text-sm text-muted-foreground">
+              How much did <strong>{markingAsPaidDebt?.fromName}</strong> pay you?
+            </p>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Amount ({markingAsPaidDebt?.currency})</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  {markingAsPaidDebt ? sym(markingAsPaidDebt.currency) : '$'}
+                </span>
+                <Input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={markAsPaidAmount}
+                  onChange={e => setMarkAsPaidAmount(e.target.value)}
+                  className="pl-8"
+                  autoFocus
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={closeMarkAsPaid} disabled={createTx.isPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleMarkAsPaid} disabled={createTx.isPending}>
+              {createTx.isPending ? 'Recording...' : 'Confirm'}
             </Button>
           </DialogFooter>
         </DialogContent>

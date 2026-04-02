@@ -177,52 +177,56 @@ export function DebtSummary({ debts, groupId, currentUserId }: DebtSummaryProps)
     venmoLink?: string | null,
     i?: number
   ) => (
-    <div key={i} className="flex flex-wrap items-center gap-2 p-3 rounded-lg border">
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        <span className="font-medium text-sm truncate">{debt.fromName}</span>
-        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-        <span className="font-medium text-sm truncate">{debt.toName}</span>
+    <div key={i} className="flex flex-col gap-2 p-3 rounded-lg border">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-medium text-sm truncate">{debt.fromName}</span>
+          <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="font-medium text-sm truncate">{debt.toName}</span>
+        </div>
+        <span className="font-semibold shrink-0">{sym(currency)}{debt.amount.toFixed(2)}</span>
       </div>
-      <div className="flex items-center gap-2 shrink-0 ml-auto">
-        <span className="font-semibold">{sym(currency)}{debt.amount.toFixed(2)}</span>
-        {debt.toId === currentUserId && (
-          <>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => openMarkAsPaid({ ...debt as SimplifiedDebt, currency })}
-              title={`Mark payment from ${debt.fromName} as received`}
-            >
-              <CheckCircle className="h-3.5 w-3.5 mr-1" />
-              Mark as paid
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setRemindingDebt({ ...debt as SimplifiedDebt, currency })}
-              title={`Send reminder to ${debt.fromName}`}
-            >
-              <Bell className="h-3.5 w-3.5 mr-1" />
-              Remind
-            </Button>
-          </>
-        )}
-        {debt.fromId === currentUserId && (
-          <>
-            <Button size="sm" variant="outline" onClick={() => openConfirm({ ...debt as SimplifiedDebt, currency })}>
-              Paid in cash
-            </Button>
-            {venmoLink !== undefined && (
-              <VenmoButton
-                venmoLink={venmoLink ?? null}
-                amount={debt.amount}
-                recipientName={debt.toName}
-                onAfterOpen={() => setVenmoConfirmingDebt({ ...debt as SimplifiedDebt, currency })}
-              />
-            )}
-          </>
-        )}
-      </div>
+      {(debt.toId === currentUserId || debt.fromId === currentUserId) && (
+        <div className="flex items-center gap-2">
+          {debt.toId === currentUserId && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openMarkAsPaid({ ...debt as SimplifiedDebt, currency })}
+                title={`Mark payment from ${debt.fromName} as received`}
+              >
+                <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                Mark as paid
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setRemindingDebt({ ...debt as SimplifiedDebt, currency })}
+                title={`Send reminder to ${debt.fromName}`}
+              >
+                <Bell className="h-3.5 w-3.5 mr-1" />
+                Remind
+              </Button>
+            </>
+          )}
+          {debt.fromId === currentUserId && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => openConfirm({ ...debt as SimplifiedDebt, currency })}>
+                Paid in cash
+              </Button>
+              {venmoLink !== undefined && (
+                <VenmoButton
+                  venmoLink={venmoLink ?? null}
+                  amount={debt.amount}
+                  recipientName={debt.toName}
+                  onAfterOpen={() => setVenmoConfirmingDebt({ ...debt as SimplifiedDebt, currency })}
+                />
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 

@@ -39,7 +39,13 @@ export function DebtBanner({ debts, groupId, currentUserId }: DebtBannerProps) {
     }
   }
 
-  if (owes.length === 0 && owed.length === 0) return null
+  if (owes.length === 0 && owed.length === 0) {
+    return (
+      <div className="rounded-lg border bg-green-50 p-4 mb-6">
+        <p className="font-semibold text-green-700">You owe: $0 — You're all Split Up!</p>
+      </div>
+    )
+  }
 
   const totalByCurrency = (entries: DebtEntry[]) =>
     Object.entries(

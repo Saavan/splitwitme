@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/api/client'
@@ -9,6 +10,7 @@ interface JoinInfo {
   groupId: string
   groupName: string
   joinCode: string
+  isMember: boolean
 }
 
 export function JoinPage() {
@@ -18,18 +20,24 @@ export function JoinPage() {
   const joinViaCode = useJoinViaCode(joinCode!)
 
   const { data, isLoading, error } = useQuery<JoinInfo>({
-    queryKey: ['join', joinCode],
+    queryKey: ['join', joinCode, user?.id ?? null],
     queryFn: async () => {
       const res = await apiClient.get(`/invites/join/${joinCode}`)
       return res.data
     },
-    enabled: !!joinCode,
+    enabled: !!joinCode && !authLoading,
     retry: false,
   })
 
+  useEffect(() => {
+    if (data?.isMember) {
+      navigate(`/groups/${data.groupId}`, { replace: true })
+    }
+  }, [data?.isMember, data?.groupId, navigate])
+
   const base = import.meta.env.VITE_API_URL || ''
 
-  if (isLoading || authLoading) {
+  if (isLoading || authLoading || data?.isMember) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />

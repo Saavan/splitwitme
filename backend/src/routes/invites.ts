@@ -107,7 +107,16 @@ publicInvitesRouter.get('/join/:joinCode', async (req, res, next) => {
       select: { id: true, name: true, joinCode: true },
     })
     if (!group) return res.status(404).json({ error: 'Join link not found or has been regenerated' })
-    res.json({ groupId: group.id, groupName: group.name, joinCode: group.joinCode })
+
+    let isMember = false
+    if (req.user) {
+      const membership = await prisma.groupMember.findUnique({
+        where: { groupId_userId: { groupId: group.id, userId: req.user.id } },
+      })
+      isMember = !!membership
+    }
+
+    res.json({ groupId: group.id, groupName: group.name, joinCode: group.joinCode, isMember })
   } catch (err) {
     next(err)
   }

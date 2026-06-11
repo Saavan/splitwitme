@@ -57,9 +57,15 @@ function asUnauthed() {
   })
 }
 
-function buildApp() {
+function buildApp(user?: typeof testUser) {
   const app = express()
   app.use(express.json())
+  if (user) {
+    app.use((req: any, _res, next) => {
+      req.user = user
+      next()
+    })
+  }
   app.use('/invites', publicInvitesRouter)
   return app
 }
@@ -301,7 +307,49 @@ describe('GET /invites/join/:joinCode', () => {
       groupId: 'g-1',
       groupName: 'Road Trip 2026',
       joinCode: 'abc123',
+      isMember: false,
     })
+    expect(prisma.groupMember.findUnique).not.toHaveBeenCalled()
+  })
+
+  it('returns isMember true when an authenticated user is already in the group', async () => {
+    vi.mocked(prisma.group.findUnique).mockResolvedValue({
+      id: 'g-1',
+      name: 'Road Trip 2026',
+      joinCode: 'abc123',
+    } as any)
+    vi.mocked(prisma.groupMember.findUnique).mockResolvedValue({
+      groupId: 'g-1',
+      userId: testUser.id,
+      role: 'MEMBER',
+    } as any)
+
+    const res = await request(buildApp(testUser)).get('/invites/join/abc123')
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({
+      groupId: 'g-1',
+      groupName: 'Road Trip 2026',
+      joinCode: 'abc123',
+      isMember: true,
+    })
+    expect(prisma.groupMember.findUnique).toHaveBeenCalledWith({
+      where: { groupId_userId: { groupId: 'g-1', userId: testUser.id } },
+    })
+  })
+
+  it('returns isMember false when an authenticated user is not in the group', async () => {
+    vi.mocked(prisma.group.findUnique).mockResolvedValue({
+      id: 'g-1',
+      name: 'Road Trip 2026',
+      joinCode: 'abc123',
+    } as any)
+    vi.mocked(prisma.groupMember.findUnique).mockResolvedValue(null)
+
+    const res = await request(buildApp(testUser)).get('/invites/join/abc123')
+
+    expect(res.status).toBe(200)
+    expect(res.body.isMember).toBe(false)
   })
 })
 

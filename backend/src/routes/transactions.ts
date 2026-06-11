@@ -158,6 +158,7 @@ transactionsRouter.patch('/:txId', requireAuth, async (req, res, next) => {
           paidById: body.paidById,
           description: body.description,
           amount: toCents(body.amount),
+          currency: body.currency,
           date: body.date ? new Date(body.date) : existing.date,
           splits: {
             create: body.splits

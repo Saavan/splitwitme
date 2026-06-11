@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { splitEqually, sumSplits, splitsMatchTotal } from '@/lib/money'
+import { currencySymbol } from '@/lib/currency'
 
 interface Member {
   id: string
@@ -18,10 +19,12 @@ interface SplitEditorProps {
   members: Member[]
   splits: Split[]
   totalAmount: number
+  currency?: string
   onChange: (splits: Split[]) => void
 }
 
-export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEditorProps) {
+export function SplitEditor({ members, splits, totalAmount, currency = 'USD', onChange }: SplitEditorProps) {
+  const sym = currencySymbol(currency)
   const [included, setIncluded] = useState<Set<string>>(() => {
     const active = splits.filter(s => s.amount > 0).map(s => s.userId)
     // Edit mode: only include members who have a non-zero split
@@ -120,7 +123,7 @@ export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEdi
                 {member.name}
               </label>
               <div className="relative w-24 shrink-0">
-                <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">$</span>
+                <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">{sym}</span>
                 {isIncluded ? (
                   <Input
                     type="number"
@@ -128,7 +131,7 @@ export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEdi
                     step="0.01"
                     value={split?.amount || ''}
                     onChange={e => handleAmountChange(member.id, e.target.value)}
-                    className="pl-6"
+                    className="pl-8"
                     placeholder="0.00"
                   />
                 ) : (
@@ -146,7 +149,7 @@ export function SplitEditor({ members, splits, totalAmount, onChange }: SplitEdi
         isValid ? 'text-green-600' : 'text-red-600'
       )}>
         <span>Total split:</span>
-        <span>${splitsTotal.toFixed(2)} / ${totalAmount.toFixed(2)}</span>
+        <span>{sym}{splitsTotal.toFixed(2)} / {sym}{totalAmount.toFixed(2)}</span>
       </div>
       {!isValid && totalAmount > 0 && (
         <p className="text-xs text-red-600">Splits must equal the transaction total</p>

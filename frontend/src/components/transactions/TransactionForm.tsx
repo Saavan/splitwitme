@@ -114,6 +114,7 @@ export function TransactionForm({ members, currentUserId, initialData, onSubmit,
         members={members}
         splits={splits}
         totalAmount={amount}
+        currency={currency}
         onChange={setSplits}
       />
 

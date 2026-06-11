@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/toast'
 
-const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', CAD: 'CA$' }
-const sym = (c: string) => CURRENCY_SYMBOL[c] ?? c
+import { currencySymbol } from '@/lib/currency'
+
+const sym = currencySymbol
 
 type DebtEntry = (SimplifiedDebt | Settlement) & { currency: string }
 
@@ -20,10 +21,10 @@ interface DebtBannerProps {
   groupId: string
   currentUserId: string
   autoConvert: boolean
-  rate: number
+  rates: Record<string, number>
 }
 
-export function DebtBanner({ debts, groupId, currentUserId, autoConvert, rate }: DebtBannerProps) {
+export function DebtBanner({ debts, groupId, currentUserId, autoConvert, rates }: DebtBannerProps) {
   const createTx = useCreateTransaction(groupId)
   const sendReminder = useSendReminder(groupId)
   const { toast } = useToast()
@@ -43,7 +44,7 @@ export function DebtBanner({ debts, groupId, currentUserId, autoConvert, rate }:
   const owed: DebtEntry[] = []
 
   if (isMultiCurrency && autoConvert) {
-    const converted = combineCurrencies(debts.perCurrency, rate)
+    const converted = combineCurrencies(debts.perCurrency, rates)
     for (const debt of converted) {
       if (debt.fromId === currentUserId) owes.push({ ...debt, currency: 'USD' })
       if (debt.toId === currentUserId) owed.push({ ...debt, currency: 'USD' })

@@ -4,14 +4,12 @@ import type { DebtsData, SimplifiedDebt, ReminderLevel } from '@/hooks/useDebts'
 import { useCreateTransaction } from '@/hooks/useTransactions'
 import { useSendReminder, useSendReminderAll } from '@/hooks/useDebts'
 import { combineCurrencies, type Settlement } from '@/lib/money'
+import { currencySymbol, DEFAULT_USD_RATES } from '@/lib/currency'
 import { VenmoButton } from './VenmoButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/toast'
-
-const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', CAD: 'CA$' }
-const DEFAULT_USD_TO_CAD = 1.39
 
 interface DebtSummaryProps {
   debts: DebtsData
@@ -19,11 +17,11 @@ interface DebtSummaryProps {
   currentUserId: string
   autoConvert: boolean
   setAutoConvert: (v: boolean) => void
-  rateInput: string
-  setRateInput: (v: string) => void
+  rateInputs: Record<string, string>
+  setRateInputs: (v: Record<string, string>) => void
 }
 
-export function DebtSummary({ debts, groupId, currentUserId, autoConvert, setAutoConvert, rateInput, setRateInput }: DebtSummaryProps) {
+export function DebtSummary({ debts, groupId, currentUserId, autoConvert, setAutoConvert, rateInputs, setRateInputs }: DebtSummaryProps) {
   const [confirmingDebt, setConfirmingDebt] = useState<SimplifiedDebt | null>(null)
   const [cashAmount, setCashAmount] = useState('')
   const [venmoConfirmingDebt, setVenmoConfirmingDebt] = useState<SimplifiedDebt | null>(null)
@@ -39,7 +37,13 @@ export function DebtSummary({ debts, groupId, currentUserId, autoConvert, setAut
 
   const currencyEntries = Object.entries(debts.perCurrency)
   const isMultiCurrency = currencyEntries.length > 1
-  const rate = parseFloat(rateInput) || DEFAULT_USD_TO_CAD
+  const foreignCurrencies = currencyEntries.map(([currency]) => currency).filter(c => c !== 'USD')
+  const rates = Object.fromEntries(
+    foreignCurrencies.map(currency => [
+      currency,
+      parseFloat(rateInputs[currency] || '') || DEFAULT_USD_RATES[currency] || 1,
+    ])
+  )
 
   const handleSendReminder = async (level: ReminderLevel) => {
     if (!remindingDebt) return
@@ -159,7 +163,7 @@ export function DebtSummary({ debts, groupId, currentUserId, autoConvert, setAut
     )
   }
 
-  const sym = (currency: string) => CURRENCY_SYMBOL[currency] ?? currency
+  const sym = currencySymbol
 
   // Collect all debtors who owe the current user (for Remind All)
   const debtorsOwingMe = currencyEntries.flatMap(([currency, data]) =>
@@ -170,7 +174,7 @@ export function DebtSummary({ debts, groupId, currentUserId, autoConvert, setAut
 
   // Converted view: merge all currencies into USD and re-simplify
   const convertedDebts: Settlement[] = (isMultiCurrency && autoConvert)
-    ? combineCurrencies(debts.perCurrency, rate)
+    ? combineCurrencies(debts.perCurrency, rates)
     : []
 
   const renderDebtRow = (
@@ -272,20 +276,20 @@ export function DebtSummary({ debts, groupId, currentUserId, autoConvert, setAut
               />
               <span className="text-sm font-medium">Automatically convert currencies</span>
             </label>
-            {autoConvert && (
-              <div className="flex items-center gap-2 ml-auto">
+            {autoConvert && foreignCurrencies.map(currency => (
+              <div key={currency} className="flex items-center gap-2 ml-auto">
                 <span className="text-sm text-muted-foreground">1 USD =</span>
                 <Input
                   type="number"
                   min="0.01"
                   step="0.01"
-                  value={rateInput}
-                  onChange={e => setRateInput(e.target.value)}
+                  value={rateInputs[currency] ?? String(DEFAULT_USD_RATES[currency] ?? '')}
+                  onChange={e => setRateInputs({ ...rateInputs, [currency]: e.target.value })}
                   className="w-24 h-8 text-sm"
                 />
-                <span className="text-sm text-muted-foreground">CAD</span>
+                <span className="text-sm text-muted-foreground">{currency}</span>
               </div>
-            )}
+            ))}
           </div>
         )}
 
@@ -293,7 +297,7 @@ export function DebtSummary({ debts, groupId, currentUserId, autoConvert, setAut
         {isMultiCurrency && autoConvert ? (
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-              USD (converted at 1 USD = {rate.toFixed(2)} CAD)
+              USD (converted at {foreignCurrencies.map(c => `1 USD = ${rates[c].toFixed(2)} ${c}`).join(', ')})
             </p>
             <div className="space-y-3">
               {convertedDebts.length === 0
@@ -329,7 +333,7 @@ export function DebtSummary({ debts, groupId, currentUserId, autoConvert, setAut
           {remindingDebt && (
             <p className="text-sm text-muted-foreground -mt-1">
               Sending reminder to <strong>{remindingDebt.fromName}</strong> for{' '}
-              <strong>{(CURRENCY_SYMBOL[remindingDebt.currency] ?? remindingDebt.currency) + remindingDebt.amount.toFixed(2)}</strong>
+              <strong>{sym(remindingDebt.currency) + remindingDebt.amount.toFixed(2)}</strong>
             </p>
           )}
           <div className="flex flex-col gap-3 mt-2">

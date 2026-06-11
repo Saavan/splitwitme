@@ -6,6 +6,7 @@ import { Select, SelectItem } from '@/components/ui/select'
 import { SplitEditor } from './SplitEditor'
 import type { CreateTransactionInput } from '@/hooks/useTransactions'
 import type { Transaction } from '@/hooks/useTransactions'
+import { currencySymbol } from '@/lib/currency'
 
 interface Member {
   id: string
@@ -61,13 +62,14 @@ export function TransactionForm({ members, currentUserId, initialData, onSubmit,
           <Select id="currency" value={currency} onValueChange={setCurrency}>
             <SelectItem value="USD">USD</SelectItem>
             <SelectItem value="CAD">CAD</SelectItem>
+            <SelectItem value="EUR">EUR</SelectItem>
           </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="amount">Amount</Label>
           <div className="relative">
             <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">
-              {currency === 'CAD' ? 'CA$' : '$'}
+              {currencySymbol(currency)}
             </span>
             <Input
               id="amount"

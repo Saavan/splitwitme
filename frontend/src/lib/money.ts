@@ -1,3 +1,5 @@
+import { balanceToUsd } from './currency'
+
 /** Convert a dollar amount (potentially floating-point) to integer cents. */
 export function toCents(dollars: number): number {
   return Math.round(dollars * 100)
@@ -95,18 +97,17 @@ export function simplifyDebts(balances: Balance[]): Settlement[] {
 
 /**
  * Combine multi-currency raw balances into a single USD view using the given
- * 1 USD = usdToCadRate CAD exchange rate, then re-simplify debts.
+ * exchange rates (1 USD = rate units of each foreign currency), then re-simplify debts.
  */
 export function combineCurrencies(
   perCurrency: Record<string, { rawBalances: Balance[] }>,
-  usdToCadRate: number
+  rates: Record<string, number>
 ): Settlement[] {
   const combined = new Map<string, { name: string; balance: number }>()
 
   for (const [currency, { rawBalances }] of Object.entries(perCurrency)) {
     for (const rb of rawBalances) {
-      // Convert each currency's balance to USD
-      const usdBalance = currency === 'CAD' ? rb.balance / usdToCadRate : rb.balance
+      const usdBalance = balanceToUsd(rb.balance, currency, rates)
       const existing = combined.get(rb.userId)
       if (existing) {
         existing.balance += usdBalance

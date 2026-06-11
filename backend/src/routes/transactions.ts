@@ -39,7 +39,7 @@ const splitSchema = z.object({
 const txBodySchema = z.object({
   description: z.string().min(1),
   amount: z.number().positive(),
-  currency: z.enum(['USD', 'CAD']).default('USD'),
+  currency: z.enum(['USD', 'CAD', 'EUR']).default('USD'),
   date: z.string().optional(),
   paidById: z.string(),
   splits: z.array(splitSchema).min(1),

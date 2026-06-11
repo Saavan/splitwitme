@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { toCents, toDollars, splitEqually, sumSplits, splitsMatchTotal } from '../money'
+import { toCents, toDollars, splitEqually, sumSplits, splitsMatchTotal, combineCurrencies } from '../money'
+import { DEFAULT_USD_RATES } from '../currency'
 
 describe('toCents', () => {
   it('converts whole dollar amounts', () => {
@@ -125,5 +126,94 @@ describe('splitsMatchTotal', () => {
   it('handles floating-point inputs without false negatives', () => {
     // 0.1 + 0.2 !== 0.3 in floats, but splitsMatchTotal uses cents
     expect(splitsMatchTotal([0.1, 0.2], 0.3)).toBe(true)
+  })
+})
+
+describe('combineCurrencies', () => {
+  const rates = { ...DEFAULT_USD_RATES }
+
+  it('converts CAD balances to USD and simplifies debts', () => {
+    const perCurrency = {
+      USD: {
+        rawBalances: [
+          { userId: 'a', name: 'Alice', balance: 10 },
+          { userId: 'b', name: 'Bob', balance: -10 },
+        ],
+      },
+      CAD: {
+        rawBalances: [
+          { userId: 'a', name: 'Alice', balance: -13.9 },
+          { userId: 'b', name: 'Bob', balance: 13.9 },
+        ],
+      },
+    }
+    const result = combineCurrencies(perCurrency, rates)
+    expect(result).toHaveLength(0)
+  })
+
+  it('converts EUR balances to USD and simplifies debts', () => {
+    const perCurrency = {
+      USD: {
+        rawBalances: [
+          { userId: 'a', name: 'Alice', balance: 10 },
+          { userId: 'b', name: 'Bob', balance: -10 },
+        ],
+      },
+      EUR: {
+        rawBalances: [
+          { userId: 'a', name: 'Alice', balance: -8.6 },
+          { userId: 'b', name: 'Bob', balance: 8.6 },
+        ],
+      },
+    }
+    const result = combineCurrencies(perCurrency, rates)
+    expect(result).toHaveLength(0)
+  })
+
+  it('combines USD, CAD, and EUR into a single USD settlement', () => {
+    const perCurrency = {
+      USD: {
+        rawBalances: [
+          { userId: 'a', name: 'Alice', balance: 20 },
+          { userId: 'b', name: 'Bob', balance: -20 },
+        ],
+      },
+      CAD: {
+        rawBalances: [
+          { userId: 'a', name: 'Alice', balance: 0 },
+          { userId: 'b', name: 'Bob', balance: 0 },
+        ],
+      },
+      EUR: {
+        rawBalances: [
+          { userId: 'a', name: 'Alice', balance: -8.6 },
+          { userId: 'b', name: 'Bob', balance: 8.6 },
+        ],
+      },
+    }
+    const result = combineCurrencies(perCurrency, rates)
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({ fromId: 'b', toId: 'a', amount: 10 })
+  })
+
+  it('partially offsets debts across USD and EUR after conversion', () => {
+    const perCurrency = {
+      USD: {
+        rawBalances: [
+          { userId: 'a', name: 'Alice', balance: 10 },
+          { userId: 'b', name: 'Bob', balance: -10 },
+        ],
+      },
+      EUR: {
+        rawBalances: [
+          { userId: 'a', name: 'Alice', balance: -17.2 },
+          { userId: 'b', name: 'Bob', balance: 17.2 },
+        ],
+      },
+    }
+    const result = combineCurrencies(perCurrency, rates)
+    // Alice is owed $10 USD but owes €17.20 (= $20 USD) → net owes Bob $10
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({ fromId: 'a', toId: 'b', amount: 10 })
   })
 })

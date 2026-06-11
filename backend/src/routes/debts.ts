@@ -91,7 +91,7 @@ debtsRouter.post('/remind', requireAuth, async (req, res, next) => {
     if (!group) return res.status(404).json({ error: 'Group not found' })
     if (!debtor) return res.status(404).json({ error: 'User not found' })
 
-    const sym: Record<string, string> = { USD: '$', CAD: 'CA$' }
+    const sym: Record<string, string> = { USD: '$', CAD: 'CA$', EUR: '€' }
     const amountStr = `${sym[currency] ?? currency}${amount.toFixed(2)}`
     const groupUrl = `${config.frontendUrl}/groups/${req.params.id}`
 
@@ -139,7 +139,7 @@ debtsRouter.post('/remind-all', requireAuth, async (req, res, next) => {
 
     const userMap = new Map(group.members.map((m: { user: { id: string; name: string; email: string } }) => [m.user.id, m.user]))
     const groupUrl = `${config.frontendUrl}/groups/${req.params.id}`
-    const sym: Record<string, string> = { USD: '$', CAD: 'CA$' }
+    const sym: Record<string, string> = { USD: '$', CAD: 'CA$', EUR: '€' }
 
     let sent = 0
     if (config.resendApiKey) {

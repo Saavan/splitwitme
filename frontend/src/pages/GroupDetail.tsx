@@ -18,6 +18,7 @@ import { AddMemberDialog } from '@/components/groups/AddMemberDialog'
 import { MontrealBackground } from '@/components/MontrealBackground'
 import { useToast } from '@/components/ui/toast'
 import type { Transaction, CreateTransactionInput } from '@/hooks/useTransactions'
+import { DEFAULT_USD_RATES } from '@/lib/currency'
 
 type Tab = 'transactions' | 'debts' | 'members'
 
@@ -39,8 +40,16 @@ export function GroupDetail() {
 
   const [tab, setTab] = useState<Tab>('transactions')
   const [autoConvert, setAutoConvert] = useState(true)
-  const [rateInput, setRateInput] = useState('1.39')
-  const rate = parseFloat(rateInput) || 1.39
+  const [rateInputs, setRateInputs] = useState<Record<string, string>>({
+    CAD: String(DEFAULT_USD_RATES.CAD),
+    EUR: String(DEFAULT_USD_RATES.EUR),
+  })
+  const rates = Object.fromEntries(
+    Object.entries(DEFAULT_USD_RATES).map(([currency, defaultRate]) => [
+      currency,
+      parseFloat(rateInputs[currency] || '') || defaultRate,
+    ])
+  )
   const [showAddMember, setShowAddMember] = useState(false)
   const [removePending, setRemovePending] = useState<{ userId: string; name: string } | null>(null)
   const [showNewTx, setShowNewTx] = useState(false)
@@ -166,7 +175,7 @@ export function GroupDetail() {
 
         {/* Debt summary banner */}
         {debts && (
-          <DebtBanner debts={debts} groupId={id!} currentUserId={user?.id || ''} autoConvert={autoConvert} rate={rate} />
+          <DebtBanner debts={debts} groupId={id!} currentUserId={user?.id || ''} autoConvert={autoConvert} rates={rates} />
         )}
 
         {/* Tabs */}
@@ -259,7 +268,7 @@ export function GroupDetail() {
         {tab === 'debts' && (
           <div>
             {debts ? (
-              <DebtSummary debts={debts} groupId={id!} currentUserId={user?.id || ''} autoConvert={autoConvert} setAutoConvert={setAutoConvert} rateInput={rateInput} setRateInput={setRateInput} />
+              <DebtSummary debts={debts} groupId={id!} currentUserId={user?.id || ''} autoConvert={autoConvert} setAutoConvert={setAutoConvert} rateInputs={rateInputs} setRateInputs={setRateInputs} />
             ) : (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />

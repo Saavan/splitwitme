@@ -4,9 +4,7 @@ import type { Group } from '@/hooks/useGroups'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { toCents, toDollars } from '@/lib/money'
-
-const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', CAD: 'CA$' }
-const DEFAULT_USD_TO_CAD = 1.39
+import { balanceToUsd, currencySymbol, DEFAULT_USD_RATES } from '@/lib/currency'
 
 interface GroupCardProps {
   group: Group
@@ -20,7 +18,7 @@ export function GroupCard({ group }: GroupCardProps) {
   const combinedUsdBalance: number | null = isMultiCurrency
     ? toDollars(
         nonZeroBalances.reduce((sum, [currency, balance]) => {
-          const usdBalance = currency === 'CAD' ? balance / DEFAULT_USD_TO_CAD : balance
+          const usdBalance = balanceToUsd(balance, currency, DEFAULT_USD_RATES)
           return sum + toCents(usdBalance)
         }, 0)
       )
@@ -70,7 +68,7 @@ export function GroupCard({ group }: GroupCardProps) {
                         balance > 0 && 'text-green-600',
                         balance < 0 && 'text-red-600',
                       )}>
-                        {CURRENCY_SYMBOL[currency] ?? currency}{Math.abs(balance).toFixed(2)}
+                        {currencySymbol(currency)}{Math.abs(balance).toFixed(2)}
                       </p>
                     </div>
                   ))}

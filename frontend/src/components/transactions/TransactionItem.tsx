@@ -2,6 +2,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import type { Transaction } from '@/hooks/useTransactions'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { currencySymbol } from '@/lib/currency'
 
 interface TransactionItemProps {
   transaction: Transaction
@@ -16,7 +17,7 @@ export function TransactionItem({ transaction, currentUserId, onEdit, onDelete }
   const myAmountCents = mySplit ? Math.round(Number(mySplit.amount) * 100) : 0
   const txAmountCents = Math.round(Number(transaction.amount) * 100)
   const netEffect = (iPaid ? txAmountCents - myAmountCents : -myAmountCents) / 100
-  const sym = transaction.currency === 'CAD' ? 'CA$' : '$'
+  const sym = currencySymbol(transaction.currency)
 
   return (
     <div className="flex items-center gap-3 py-3 border-b last:border-0">

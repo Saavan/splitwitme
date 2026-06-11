@@ -1,6 +1,6 @@
 import { simplifyDebts, type Balance, type Settlement } from './debtSimplifier'
 
-export const SUPPORTED_CURRENCIES = ['USD', 'CAD'] as const
+export const SUPPORTED_CURRENCIES = ['USD', 'CAD', 'EUR'] as const
 export type Currency = typeof SUPPORTED_CURRENCIES[number]
 
 export interface MemberInfo {

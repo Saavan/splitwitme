@@ -33,6 +33,24 @@ describe('computeDebtsPerCurrency', () => {
     result.USD.simplifiedDebts.forEach(d => expect(d.toId).toBe('a'))
   })
 
+  it('returns only EUR when all transactions are EUR', () => {
+    const txs: TransactionInfo[] = [
+      {
+        paidById: 'b',
+        amount: 2000, // €20.00
+        currency: 'EUR',
+        splits: [
+          { userId: 'a', amount: 1000 },
+          { userId: 'b', amount: 1000 },
+        ],
+      },
+    ]
+    const result = computeDebtsPerCurrency(txs, members)
+    expect(Object.keys(result)).toEqual(['EUR'])
+    expect(result.EUR.simplifiedDebts).toHaveLength(1)
+    expect(result.EUR.simplifiedDebts[0]).toMatchObject({ fromId: 'a', toId: 'b', amount: 1000 })
+  })
+
   it('returns only CAD when all transactions are CAD', () => {
     const txs: TransactionInfo[] = [
       {
@@ -86,6 +104,29 @@ describe('computeDebtsPerCurrency', () => {
     const result = computeDebtsPerCurrency(txs, members)
     expect(result.USD.simplifiedDebts[0]).toMatchObject({ fromId: 'b', toId: 'a', amount: 1000 })
     expect(result.CAD.simplifiedDebts[0]).toMatchObject({ fromId: 'a', toId: 'b', amount: 1000 })
+  })
+
+  it('separates USD, CAD, and EUR debts independently', () => {
+    const txs: TransactionInfo[] = [
+      { paidById: 'a', amount: 1000, currency: 'USD', splits: [{ userId: 'b', amount: 1000 }] },
+      { paidById: 'b', amount: 2000, currency: 'CAD', splits: [{ userId: 'a', amount: 2000 }] },
+      { paidById: 'c', amount: 3000, currency: 'EUR', splits: [{ userId: 'a', amount: 3000 }] },
+    ]
+    const result = computeDebtsPerCurrency(txs, members)
+    expect(Object.keys(result).sort()).toEqual(['CAD', 'EUR', 'USD'])
+    expect(result.USD.simplifiedDebts[0]).toMatchObject({ fromId: 'b', toId: 'a', amount: 1000 })
+    expect(result.CAD.simplifiedDebts[0]).toMatchObject({ fromId: 'a', toId: 'b', amount: 2000 })
+    expect(result.EUR.simplifiedDebts[0]).toMatchObject({ fromId: 'a', toId: 'c', amount: 3000 })
+  })
+
+  it('USD and EUR debts do not cancel each other out', () => {
+    const txs: TransactionInfo[] = [
+      { paidById: 'a', amount: 1000, currency: 'USD', splits: [{ userId: 'b', amount: 1000 }] },
+      { paidById: 'b', amount: 1000, currency: 'EUR', splits: [{ userId: 'a', amount: 1000 }] },
+    ]
+    const result = computeDebtsPerCurrency(txs, members)
+    expect(result.USD.simplifiedDebts[0]).toMatchObject({ fromId: 'b', toId: 'a', amount: 1000 })
+    expect(result.EUR.simplifiedDebts[0]).toMatchObject({ fromId: 'a', toId: 'b', amount: 1000 })
   })
 
   it('correctly computes raw balances in cents', () => {

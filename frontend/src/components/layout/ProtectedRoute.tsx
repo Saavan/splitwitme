@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { VenmoPromptDialog, hasBeenPrompted } from '@/components/VenmoPromptDialog'
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useAuth()
+  const location = useLocation()
   const [prompted, setPrompted] = useState(false)
 
   if (isLoading) {
@@ -16,7 +17,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    const returnTo = encodeURIComponent(location.pathname + location.search)
+    return <Navigate to={`/login?returnTo=${returnTo}`} replace />
   }
 
   const showVenmoPrompt = !prompted && user.venmoHandle === null && !hasBeenPrompted(user.id)

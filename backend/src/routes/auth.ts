@@ -4,22 +4,26 @@ import { z } from 'zod'
 import { prisma } from '../db'
 import { requireAuth } from '../middleware/requireAuth'
 import { config } from '../config'
+import { validateReturnTo } from '../lib/returnTo'
 
 declare module 'express-session' {
   interface SessionData {
     inviteToken?: string
     joinCode?: string
+    returnTo?: string
   }
 }
 
 export const authRouter = Router()
 
 authRouter.get('/auth/google', (req, res, next) => {
-  const { inviteToken, joinCode } = req.query
+  const { inviteToken, joinCode, returnTo } = req.query
   if (inviteToken) req.session.inviteToken = inviteToken as string
   if (joinCode) req.session.joinCode = joinCode as string
+  const validatedReturnTo = validateReturnTo(returnTo as string | undefined)
+  if (validatedReturnTo) req.session.returnTo = validatedReturnTo
   const authOptions = { scope: ['profile', 'email'], prompt: 'select_account' } as any
-  if (inviteToken || joinCode) {
+  if (inviteToken || joinCode || validatedReturnTo) {
     req.session.save(() => passport.authenticate('google', authOptions)(req, res, next))
   } else {
     passport.authenticate('google', authOptions)(req, res, next)
@@ -34,12 +38,14 @@ authRouter.get(
   (req, res, next) => {
     ;(req as any)._pendingInviteToken = req.session.inviteToken
     ;(req as any)._pendingJoinCode = req.session.joinCode
+    ;(req as any)._pendingReturnTo = req.session.returnTo
     next()
   },
   passport.authenticate('google', { failureRedirect: `${config.frontendUrl}/login?error=auth_failed` }),
   async (req, res) => {
     const inviteToken: string | undefined = (req as any)._pendingInviteToken
     const joinCode: string | undefined = (req as any)._pendingJoinCode
+    const returnTo: string | null = validateReturnTo((req as any)._pendingReturnTo)
 
     // Handle invite token claim
     if (inviteToken) {
@@ -82,12 +88,16 @@ authRouter.get(
       }
     }
 
+    if (returnTo) {
+      return res.redirect(`${config.frontendUrl}${returnTo}`)
+    }
+
     res.redirect(config.frontendUrl)
   }
 )
 
-authRouter.get('/auth/me', requireAuth, (req, res) => {
-  res.json(req.user)
+authRouter.get('/auth/me', (req, res) => {
+  res.json(req.user ?? null)
 })
 
 authRouter.post('/auth/logout', (req, res, next) => {

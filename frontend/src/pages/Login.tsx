@@ -1,10 +1,14 @@
+import { useSearchParams } from 'react-router-dom'
 import { SplitSquareHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { signInWithGoogle } from '@/lib/auth'
 
 export function Login() {
+  const [searchParams] = useSearchParams()
+  const returnTo = searchParams.get('returnTo') ?? undefined
+
   const handleGoogleLogin = () => {
-    const base = import.meta.env.VITE_API_URL || ''
-    window.location.href = `${base}/auth/google`
+    signInWithGoogle({ returnTo })
   }
 
   return (

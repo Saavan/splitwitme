@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useInviteInfo, useClaimInvite } from '@/hooks/useInvites'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
+import { signInWithGoogle } from '@/lib/auth'
 
 export function InvitePage() {
   const { token } = useParams<{ token: string }>()
@@ -9,8 +10,6 @@ export function InvitePage() {
   const { data: invite, isLoading, error, failureReason } = useInviteInfo(token!)
   const { data: user, isLoading: authLoading } = useAuth()
   const claimInvite = useClaimInvite(token!)
-
-  const base = import.meta.env.VITE_API_URL || ''
 
   if (isLoading || authLoading) {
     return (
@@ -50,6 +49,10 @@ export function InvitePage() {
     navigate(`/groups/${result.groupId}`)
   }
 
+  const handleSignIn = () => {
+    signInWithGoogle({ inviteToken: token, returnTo: `/invite/${token}` })
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center space-y-6 max-w-sm px-4">
@@ -70,7 +73,7 @@ export function InvitePage() {
         ) : (
           <Button
             size="lg"
-            onClick={() => { window.location.href = `${base}/auth/google?inviteToken=${token}` }}
+            onClick={handleSignIn}
           >
             Sign in with Google to accept
           </Button>

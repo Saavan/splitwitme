@@ -5,6 +5,7 @@ import apiClient from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useJoinViaCode } from '@/hooks/useInvites'
 import { Button } from '@/components/ui/button'
+import { signInWithGoogle } from '@/lib/auth'
 
 interface JoinInfo {
   groupId: string
@@ -35,8 +36,6 @@ export function JoinPage() {
     }
   }, [data?.isMember, data?.groupId, navigate])
 
-  const base = import.meta.env.VITE_API_URL || ''
-
   if (isLoading || authLoading || data?.isMember) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -58,6 +57,10 @@ export function JoinPage() {
   const handleJoin = async () => {
     const result = await joinViaCode.mutateAsync()
     navigate(`/groups/${result.groupId}`)
+  }
+
+  const handleSignIn = () => {
+    signInWithGoogle({ joinCode, returnTo: `/join/${joinCode}` })
   }
 
   return (
@@ -84,7 +87,7 @@ export function JoinPage() {
         ) : (
           <Button
             size="lg"
-            onClick={() => { window.location.href = `${base}/auth/google?joinCode=${joinCode}` }}
+            onClick={handleSignIn}
           >
             Sign in with Google
           </Button>

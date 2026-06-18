@@ -13,12 +13,8 @@ export function useAuth() {
   return useQuery<User | null>({
     queryKey: ['auth', 'me'],
     queryFn: async () => {
-      try {
-        const res = await apiClient.get('/auth/me')
-        return res.data
-      } catch {
-        return null
-      }
+      const res = await apiClient.get('/auth/me')
+      return res.data
     },
     retry: false,
     staleTime: 5 * 60 * 1000,

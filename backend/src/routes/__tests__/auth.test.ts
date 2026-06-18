@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import express, { Request, Response, NextFunction } from 'express'
 import request from 'supertest'
+import passport from 'passport'
 import { authRouter } from '../auth'
 import { prisma } from '../../db'
 import { requireAuth } from '../../middleware/requireAuth'
@@ -66,7 +67,7 @@ const testUser = {
  * Builds a minimal Express app with a fake session middleware so route
  * handlers can read/write req.session without needing a real session store.
  */
-function buildApp(sessionData: Record<string, any> = {}) {
+function buildApp(sessionData: Record<string, any> = {}, user?: typeof testUser) {
   const app = express()
   app.use(express.json())
 
@@ -74,9 +75,10 @@ function buildApp(sessionData: Record<string, any> = {}) {
   app.use((req: any, _res: Response, next: NextFunction) => {
     req.session = {
       ...sessionData,
-      save: (cb: () => void) => cb(),
+      save: vi.fn((cb: () => void) => cb()),
       destroy: (cb: () => void) => cb(),
     }
+    if (user) req.user = user
     next()
   })
 
@@ -90,28 +92,24 @@ function buildApp(sessionData: Record<string, any> = {}) {
 describe('GET /auth/me', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('returns 401 when not authenticated', async () => {
-    vi.mocked(requireAuth).mockImplementation((_req: any, res: Response) => {
-      res.status(401).json({ error: 'Unauthorized' })
-    })
-    const app = buildApp()
-
-    const res = await request(app).get('/auth/me')
-
-    expect(res.status).toBe(401)
-  })
-
-  it('returns the current user when authenticated', async () => {
-    vi.mocked(requireAuth).mockImplementation((req: any, _res: Response, next: NextFunction) => {
-      req.user = testUser
-      next()
-    })
+  it('returns 200 with null when not authenticated', async () => {
     const app = buildApp()
 
     const res = await request(app).get('/auth/me')
 
     expect(res.status).toBe(200)
+    expect(res.body).toBeNull()
+    expect(requireAuth).not.toHaveBeenCalled()
+  })
+
+  it('returns the current user when authenticated', async () => {
+    const app = buildApp({}, testUser)
+
+    const res = await request(app).get('/auth/me')
+
+    expect(res.status).toBe(200)
     expect(res.body).toMatchObject({ id: testUser.id, email: testUser.email })
+    expect(requireAuth).not.toHaveBeenCalled()
   })
 })
 
@@ -197,6 +195,86 @@ describe('POST /auth/logout', () => {
 })
 
 // ---------------------------------------------------------------------------
+// GET /auth/google — session intent storage
+// ---------------------------------------------------------------------------
+describe('GET /auth/google — session intent storage', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('stores valid returnTo and calls session.save', async () => {
+    let capturedSession: any
+    const app = express()
+    app.use((req: any, _res, next) => {
+      req.session = {
+        save: vi.fn((cb: () => void) => cb()),
+      }
+      capturedSession = req.session
+      next()
+    })
+    app.use(authRouter)
+
+    await request(app).get('/auth/google?returnTo=/groups/g-1')
+
+    expect(capturedSession.returnTo).toBe('/groups/g-1')
+    expect(capturedSession.save).toHaveBeenCalled()
+  })
+
+  it('does not store invalid returnTo', async () => {
+    let capturedSession: any
+    const app = express()
+    app.use((req: any, _res, next) => {
+      req.session = {
+        save: vi.fn((cb: () => void) => cb()),
+      }
+      capturedSession = req.session
+      next()
+    })
+    app.use(authRouter)
+
+    await request(app).get('/auth/google?returnTo=//evil.com')
+
+    expect(capturedSession.returnTo).toBeUndefined()
+    expect(capturedSession.save).not.toHaveBeenCalled()
+  })
+
+  it('stores joinCode and returnTo together', async () => {
+    let capturedSession: any
+    const app = express()
+    app.use((req: any, _res, next) => {
+      req.session = {
+        save: vi.fn((cb: () => void) => cb()),
+      }
+      capturedSession = req.session
+      next()
+    })
+    app.use(authRouter)
+
+    await request(app).get('/auth/google?joinCode=abc&returnTo=/join/abc')
+
+    expect(capturedSession.joinCode).toBe('abc')
+    expect(capturedSession.returnTo).toBe('/join/abc')
+    expect(capturedSession.save).toHaveBeenCalled()
+  })
+
+  it('does not call session.save when no intent params are present', async () => {
+    let capturedSession: any
+    const app = express()
+    app.use((req: any, _res, next) => {
+      req.session = {
+        save: vi.fn((cb: () => void) => cb()),
+      }
+      capturedSession = req.session
+      next()
+    })
+    app.use(authRouter)
+
+    await request(app).get('/auth/google')
+
+    expect(capturedSession.save).not.toHaveBeenCalled()
+    expect(passport.authenticate).toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // OAuth callback: session token preservation
 //
 // Passport ≥ 0.6 calls req.session.regenerate() after login, which wipes any
@@ -216,6 +294,33 @@ describe('GET /auth/google/callback — session token preservation', () => {
     expect(res.headers.location).toBe('http://localhost:5173')
   })
 
+  it('redirects to returnTo when only returnTo is in the session', async () => {
+    const app = buildApp({ returnTo: '/groups/g-1' })
+
+    const res = await request(app).get('/auth/google/callback')
+
+    expect(res.status).toBe(302)
+    expect(res.headers.location).toBe('http://localhost:5173/groups/g-1')
+  })
+
+  it('redirects to home when returnTo is invalid', async () => {
+    const app = buildApp({ returnTo: '//evil.com' })
+
+    const res = await request(app).get('/auth/google/callback')
+
+    expect(res.status).toBe(302)
+    expect(res.headers.location).toBe('http://localhost:5173')
+  })
+
+  it('redirects to returnTo with query string preserved', async () => {
+    const app = buildApp({ returnTo: '/groups/g-1?tab=debts' })
+
+    const res = await request(app).get('/auth/google/callback')
+
+    expect(res.status).toBe(302)
+    expect(res.headers.location).toBe('http://localhost:5173/groups/g-1?tab=debts')
+  })
+
   it('joins the group and redirects when a valid inviteToken is in the session', async () => {
     vi.mocked(prisma.groupInvite.findUnique).mockResolvedValue({
       token: 'invite-abc',
@@ -233,6 +338,24 @@ describe('GET /auth/google/callback — session token preservation', () => {
     expect(res.status).toBe(302)
     expect(res.headers.location).toBe('http://localhost:5173/groups/g-1')
     expect(prisma.$transaction).toHaveBeenCalledOnce()
+  })
+
+  it('inviteToken beats returnTo', async () => {
+    vi.mocked(prisma.groupInvite.findUnique).mockResolvedValue({
+      token: 'tok',
+      groupId: 'g-1',
+      claimedAt: null,
+      expiresAt: null,
+    } as any)
+    vi.mocked(prisma.groupMember.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.$transaction).mockResolvedValue([{}, {}])
+
+    const app = buildApp({ inviteToken: 'tok', returnTo: '/invite/tok' })
+
+    const res = await request(app).get('/auth/google/callback')
+
+    expect(res.status).toBe(302)
+    expect(res.headers.location).toBe('http://localhost:5173/groups/g-1')
   })
 
   it('still redirects to group when user is already a member (no duplicate created)', async () => {
@@ -255,7 +378,7 @@ describe('GET /auth/google/callback — session token preservation', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled()
   })
 
-  it('falls through to frontendUrl when inviteToken is expired', async () => {
+  it('falls through to returnTo when inviteToken is expired', async () => {
     vi.mocked(prisma.groupInvite.findUnique).mockResolvedValue({
       token: 'expired',
       groupId: 'g-1',
@@ -263,12 +386,12 @@ describe('GET /auth/google/callback — session token preservation', () => {
       expiresAt: new Date(Date.now() - 1000),
     } as any)
 
-    const app = buildApp({ inviteToken: 'expired' })
+    const app = buildApp({ inviteToken: 'expired', returnTo: '/join/abc' })
 
     const res = await request(app).get('/auth/google/callback')
 
     expect(res.status).toBe(302)
-    expect(res.headers.location).toBe('http://localhost:5173')
+    expect(res.headers.location).toBe('http://localhost:5173/join/abc')
   })
 
   it('joins the group and redirects when a valid joinCode is in the session', async () => {
@@ -288,14 +411,30 @@ describe('GET /auth/google/callback — session token preservation', () => {
     expect(prisma.groupMember.upsert).toHaveBeenCalledOnce()
   })
 
-  it('falls through to frontendUrl when joinCode does not match any group', async () => {
-    vi.mocked(prisma.group.findUnique).mockResolvedValue(null)
+  it('joinCode beats returnTo', async () => {
+    vi.mocked(prisma.group.findUnique).mockResolvedValue({
+      id: 'g-2',
+      name: 'Road Trip',
+      joinCode: 'join-xyz',
+    } as any)
+    vi.mocked(prisma.groupMember.upsert).mockResolvedValue({} as any)
 
-    const app = buildApp({ joinCode: 'bad-code' })
+    const app = buildApp({ joinCode: 'join-xyz', returnTo: '/join/xyz' })
 
     const res = await request(app).get('/auth/google/callback')
 
     expect(res.status).toBe(302)
-    expect(res.headers.location).toBe('http://localhost:5173')
+    expect(res.headers.location).toBe('http://localhost:5173/groups/g-2')
+  })
+
+  it('falls through to returnTo when joinCode does not match any group', async () => {
+    vi.mocked(prisma.group.findUnique).mockResolvedValue(null)
+
+    const app = buildApp({ joinCode: 'bad-code', returnTo: '/join/abc' })
+
+    const res = await request(app).get('/auth/google/callback')
+
+    expect(res.status).toBe(302)
+    expect(res.headers.location).toBe('http://localhost:5173/join/abc')
   })
 })

@@ -1,14 +1,17 @@
 import { defineConfig } from 'vitest/config'
 import path from 'path'
 
-// Separate config for unit tests of pure utility modules.
-// Does not load vite.config.ts (which uses @vitejs/plugin-react 6 / Vite 8,
-// incompatible with the workspace-level Vitest 1.x runner).
+// Standalone config for vitest 1.x (does not load vite.config.ts, which uses
+// @vitejs/plugin-react 6 / Vite 8). JSX is handled via esbuild instead.
 export default defineConfig({
+  esbuild: {
+    jsx: 'automatic',
+  },
   test: {
     globals: true,
-    environment: 'node',
-    include: ['src/lib/__tests__/**/*.test.ts'],
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/__tests__/**/*.test.{ts,tsx}'],
   },
   resolve: {
     alias: {
